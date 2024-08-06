@@ -14,12 +14,10 @@ function_Param_List : function_Argument (',' function_Argument)*;
 function_Argument   : typename Identifier;
 
 /* Class part.  */
-class_Definition    : 'class' Identifier '{' class_Content* '}' ';';
+class_Definition    : 'class' Identifier '{'
+    (variable_Definition | function_Definition | class_Ctor_Function)*
+    '}' ';';
 class_Ctor_Function : Identifier '(' ')' block_Stmt;
-class_Content       :
-    variable_Definition |
-    function_Definition |
-    class_Ctor_Function ;
 
 /* Basic statement.  */
 stmt:
@@ -104,7 +102,7 @@ new_Type :
     | (BasicTypes ('[' ']')* array_Literal)
     | (Identifier new_Index? ('(' ')')?) ;
 new_Index           : ('[' good+=expression ']')+ ('[' ']')* ('[' bad+=expression ']')*;
-array_Literal : '{' (literal_List? | array_Literal_List? ) '}' ;
+array_Literal : '{' (literal_List | array_Literal_List )? '}' ;
 array_Literal_List : array_Literal (',' array_Literal)* ;
 literal_List  : literal_Constant (',' literal_Constant)* ;
 literal_Constant    : Number | Cstring | Null | True_ | False_;

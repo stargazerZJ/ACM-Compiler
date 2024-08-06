@@ -15,7 +15,9 @@ class TypeBase:
             return self.name == other.name
         return False
 
-    def add_member(self, name: str, typ: "TypeBase"):
+    def add_member(self, name: str, typ: "TypeBase", ctx: ParserRuleContext = None):
+        if name in self.members:
+            raise MxSyntaxError(f"Type '{self.name}' already has a member named '{name}'", ctx)
         self.members[name] = typ
 
     def get_member(self, name: str, ctx: ParserRuleContext = None) -> "TypeBase":
@@ -100,20 +102,19 @@ class ClassType(TypeBase):
         super().__init__(name)
 
 
-builtin_types = [
-    BuiltinIntType(),
-    BuiltinBoolType(),
-    BuiltinVoidType(),
-    BuiltinStringType(),
-    BuiltinNullType(),  # a special type for null literal
-]
-
-builtin_functions = [
-    FunctionType("print", BuiltinVoidType(), [BuiltinStringType()]),
-    FunctionType("println", BuiltinVoidType(), [BuiltinStringType()]),
-    FunctionType("printInt", BuiltinVoidType(), [BuiltinIntType()]),
-    FunctionType("printlnInt", BuiltinVoidType(), [BuiltinIntType()]),
-    FunctionType("getString", BuiltinStringType(), []),
-    FunctionType("getInt", BuiltinIntType(), []),
-    FunctionType("toString", BuiltinStringType(), [BuiltinIntType()]),
-]
+builtin_types = {
+    "int": BuiltinIntType(),
+    "bool": BuiltinBoolType(),
+    "void": BuiltinVoidType(),
+    "string": BuiltinStringType(),
+    "null": BuiltinNullType(),  # a special type for null literal
+}
+builtin_functions = {
+    "print": FunctionType("print", BuiltinVoidType(), [BuiltinStringType()]),
+    "println": FunctionType("println", BuiltinVoidType(), [BuiltinStringType()]),
+    "printInt": FunctionType("printInt", BuiltinVoidType(), [BuiltinIntType()]),
+    "printlnInt": FunctionType("printlnInt", BuiltinVoidType(), [BuiltinIntType()]),
+    "getString": FunctionType("getString", BuiltinStringType(), []),
+    "getInt": FunctionType("getInt", BuiltinIntType(), []),
+    "toString": FunctionType("toString", BuiltinStringType(), [BuiltinIntType()]),
+}
