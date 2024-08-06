@@ -107,5 +107,5 @@ new_Index           : ('[' good+=expression ']')+ ('[' ']')* ('[' bad+=expressio
 array_Literal : '{' (literal_List? | array_Literal_List? ) '}' ;
 array_Literal_List : array_Literal (',' array_Literal)* ;
 literal_List  : literal_Constant (',' literal_Constant)* ;
-literal_Constant    : Number | Cstring | Null | True | False;
+literal_Constant    : Number | Cstring | Null | True_ | False_;
 

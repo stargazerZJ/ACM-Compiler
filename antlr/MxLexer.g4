@@ -21,8 +21,8 @@ BasicTypes  : 'int' | 'bool' | 'void' | 'string' ;
 /* Built-in Variables */
 This    : 'this'  ;
 Null    : 'null'  ;
-True    : 'true'  ;
-False   : 'false' ;
+True_    : 'true'  ;
+False_   : 'false' ;
 
 
 /* Classes. */
