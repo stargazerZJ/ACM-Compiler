@@ -100,10 +100,13 @@ class SyntaxChecker(MxParserVisitor):
             self.scope.add_variable(init_stmt.Identifier().getText(), type_, ctx)
 
     def visitArray_Literal(self, ctx: MxParser.Array_LiteralContext, typename: str = "", dimension: int = 0):
-        if dimension == 0:
+        if dimension == 1:
             if ctx.array_Literal_List():
                 raise MxSyntaxError("Array literal has too many dimensions", ctx)
-            for literal in ctx.literal_List().literal():
+            if not ctx.literal_List():
+                # {}
+                return
+            for literal in ctx.literal_List().literal_Constant():
                 literal_type, _ = self.visitLiteral_Constant(literal)
                 if literal_type != builtin_types[typename]:
                     raise MxSyntaxError(f"Type mismatch: expected {typename}, got {literal_type.name}", ctx)
@@ -379,7 +382,9 @@ if __name__ == '__main__':
     # test_file_path = "./testcases/sema/basic-package/basic-41.mx"
     # test_file_path = "./testcases/sema/class-package/class-12.mx"
     # test_file_path = "./testcases/sema/array-package/array-2.mx"
-    test_file_path = "./testcases/sema/misc-package/misc-1.mx"
+    # test_file_path = "./testcases/sema/misc-package/misc-1.mx"
+    # test_file_path = "./testcases/sema/const-array-package/const_array1.mx"
+    test_file_path = "./testcases/sema/scope-package/scope-1.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     lexer = MxLexer(input_stream)
     parser = MxParser(antlr4.CommonTokenStream(lexer))
