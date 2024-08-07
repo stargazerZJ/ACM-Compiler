@@ -80,7 +80,7 @@ class SyntaxChecker(MxParserVisitor):
     def visitVariable_Definition(self, ctx: MxParser.Variable_DefinitionContext):
         typename, dimension = self.visitTypename(ctx.typename())
         type_ = self.scope.get_type(typename, dimension, ctx)
-        if type_ == builtin_types["void"]:
+        if typename == "void":
             raise MxSyntaxError("Variable cannot have type void", ctx)
         for init_stmt in ctx.init_Stmt():
             if init_stmt.expression():
