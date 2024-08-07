@@ -60,6 +60,8 @@ class SyntaxChecker(MxParserVisitor):
         # Register member functions
         for func_ctx in ctx.function_Definition():
             func = self.register_function(self.scope, func_ctx)
+            if func.name == class_name:
+                raise MxSyntaxError(f"Constructor '{class_name}' should be defined separately", func_ctx)
             class_type.add_member(func.name, func)
 
         # Register member variables
