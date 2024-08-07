@@ -27,29 +27,27 @@ stmt:
     flow_Stmt           |
     variable_Definition |
     block_Stmt          ;
-
-
-/* Simple? */
 block_Stmt  : '{' stmt* '}' ;
 simple_Stmt : expr_List? ';';
+suite : block_Stmt | stmt ;
 
 
 /* Branch part. */
 branch_Stmt: if_Stmt else_if_Stmt* else_Stmt?   ;
-if_Stmt     : 'if'      '(' expression ')' stmt ;
-else_if_Stmt: 'else if' '(' expression ')' stmt ;
-else_Stmt   : 'else'                       stmt ;
+if_Stmt     : 'if'      '(' expression ')' suite ;
+else_if_Stmt: 'else if' '(' expression ')' suite ;
+else_Stmt   : 'else'                       suite ;
 
 
 /* Loop part */
 loop_Stmt   : for_Stmt | while_Stmt ;
 for_Stmt    :
     'for' '('
-        (simple_Stmt | variable_Definition)
+        initializer = expression? ';'
         condition   = expression? ';'
         step        = expression?
-    ')' stmt;
-while_Stmt  : 'while' '(' expression ')' stmt  ;
+    ')' suite;
+while_Stmt  : 'while' '(' condition = expression ')' suite  ;
 
 
 /* Flow control. */
@@ -99,9 +97,9 @@ f_string: (FStringHead (expression FStringMid)*? expression FStringTail) | FStri
 typename            : (BasicTypes | Identifier) ('[' ']')* ;
 new_Type :
     (BasicTypes new_Index)
-    | (BasicTypes ('[' ']')* array_Literal)
+    | (BasicTypes ('[' ']')+ array_Literal)
     | (Identifier new_Index? ('(' ')')?) ;
-new_Index           : ('[' good+=expression ']')+ ('[' ']')* ('[' bad+=expression ']')*;
+new_Index           : ('[' expression ']')+ ('[' ']')*;
 array_Literal : '{' (literal_List | array_Literal_List )? '}' ;
 array_Literal_List : array_Literal (',' array_Literal)* ;
 literal_List  : literal_Constant (',' literal_Constant)* ;

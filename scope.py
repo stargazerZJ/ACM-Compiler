@@ -13,7 +13,7 @@ class ScopeBase:
     def add_variable(self, name: str, typ: TypeBase, ctx: ParserRuleContext = None):
         raise MxSyntaxError(f"Variable '{name}' already defined", ctx)
 
-    def push_scope(self, is_loop_scope: bool):
+    def push_scope(self, is_loop_scope: bool = False):
         pass
 
     def pop_scope(self):
@@ -31,8 +31,14 @@ class ScopeBase:
     def get_this_type(self) -> TypeBase:
         raise MxSyntaxError("Keyword 'this' not allowed here", None)
 
+    def get_return_type(self) -> TypeBase:
+        raise MxSyntaxError("Keyword 'return' not allowed here", None)
 
-class GlobalScope:
+    def set_return_type(self, typ: TypeBase):
+        raise MxSyntaxError("Keyword 'return' not allowed here", None)
+
+
+class GlobalScope(ScopeBase):
     types: dict[str, TypeBase]
     global_functions: dict[str, FunctionType]
 
@@ -76,10 +82,12 @@ class Scope(ScopeBase):
     global_scope: GlobalScope
     scope_stack: list[LocalScope]
     this_type: TypeBase | None
+    return_type: TypeBase
 
     def __init__(self, types: GlobalScope):
         self.global_scope = types
         self.scope_stack = [LocalScope(False)]
+        self.this_type = None
 
     def get_type(self, name: str, dimensions=0, ctx: ParserRuleContext = None) -> TypeBase:
         return self.global_scope.get_type(name, dimensions, ctx)
@@ -99,7 +107,7 @@ class Scope(ScopeBase):
             raise MxSyntaxError(f"Variable '{name}' already defined as a function", ctx)
         self.scope_stack[-1].variables[name] = typ
 
-    def push_scope(self, is_loop_scope: bool):
+    def push_scope(self, is_loop_scope: bool = False):
         self.scope_stack.append(LocalScope(is_loop_scope))
 
     def pop_scope(self):
@@ -121,3 +129,9 @@ class Scope(ScopeBase):
         if self.this_type is None:
             raise MxSyntaxError("Keyword 'this' not allowed here", None)
         return self.this_type
+
+    def get_return_type(self) -> TypeBase:
+        return self.return_type
+
+    def set_return_type(self, typ: TypeBase):
+        self.return_type = typ

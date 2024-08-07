@@ -15,6 +15,10 @@ class TypeBase:
             return self.name == other.name
         return False
 
+    def __ne__(self, other: object) -> bool:
+        return not self.__eq__(other)
+
+
     def add_member(self, name: str, typ: "TypeBase", ctx: ParserRuleContext = None):
         if name in self.members:
             raise MxSyntaxError(f"Type '{self.name}' already has a member named '{name}'", ctx)
@@ -30,6 +34,9 @@ class TypeBase:
 
     def subscript(self, ctx: ParserRuleContext = None) -> "TypeBase":
         raise MxSyntaxError(f"Type '{self.name}' cannot be subscripted", ctx)
+
+    def can_be_null(self, ctx: ParserRuleContext = None) -> bool:
+        return True
 
 
 class FunctionType(TypeBase):
@@ -72,10 +79,16 @@ class BuiltinIntType(TypeBase):
     def __init__(self):
         super().__init__("int")
 
+    def can_be_null(self, ctx: ParserRuleContext = None) -> bool:
+        return False
+
 
 class BuiltinBoolType(TypeBase):
     def __init__(self):
         super().__init__("bool")
+
+    def can_be_null(self, ctx: ParserRuleContext = None) -> bool:
+        return False
 
 
 class BuiltinVoidType(TypeBase):
@@ -90,6 +103,9 @@ class BuiltinStringType(TypeBase):
         self.add_member("substring", FunctionType("substring", self, [BuiltinIntType(), BuiltinIntType()]))
         self.add_member("parseInt", FunctionType("parseInt", BuiltinIntType(), []))
         self.add_member("ord", FunctionType("ord", BuiltinIntType(), []))
+
+    def can_be_null(self, ctx: ParserRuleContext = None) -> bool:
+        return False
 
 
 class BuiltinNullType(TypeBase):
