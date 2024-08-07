@@ -121,9 +121,13 @@ class Scope(ScopeBase):
 
     def enter_class_scope(self, class_name: str):
         self.this_type = self.global_scope.get_type(class_name)
+        self.scope_stack.append(LocalScope(False))
+        for name, typ in self.this_type.members.items():
+            self.scope_stack[-1].variables[name] = typ
 
     def exit_class_scope(self):
         self.this_type = None
+        self.scope_stack.pop()
 
     def get_this_type(self) -> TypeBase:
         if self.this_type is None:
