@@ -64,7 +64,7 @@ init_Stmt: Identifier ('=' (array_Literal | expression))?;
 expr_List   : expression (',' expression)*   ;
 expression  :
   '(' l = expression    op = ')'                                        # bracket
-    | l = expression   (op = '['    expression  ']')+                   # subscript
+    | l = expression   (op = '['    sub += expression  ']')+            # subscript
     | l = expression    op = '('    expr_List?  ')'                     # function
     | l = expression    op = '.'    Identifier                          # member
     | l = expression    op = ('++' |'--')                               # unary
@@ -99,7 +99,7 @@ new_Type :
     (BasicTypes new_Index)
     | (BasicTypes ('[' ']')+ array_Literal)
     | (Identifier new_Index? ('(' ')')?) ;
-new_Index           : ('[' expression ']')+ ('[' ']')*;
+new_Index           : ('[' good+=expression ']')+ ('[' ']')* ('[' bad+=expression ']')*;
 array_Literal : '{' (literal_List | array_Literal_List )? '}' ;
 array_Literal_List : array_Literal (',' array_Literal)* ;
 literal_List  : literal_Constant (',' literal_Constant)* ;

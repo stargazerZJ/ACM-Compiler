@@ -102,7 +102,7 @@ class BuiltinStringType(TypeBase):
         self.add_member("length", FunctionType("length", BuiltinIntType(), []))
         self.add_member("substring", FunctionType("substring", self, [BuiltinIntType(), BuiltinIntType()]))
         self.add_member("parseInt", FunctionType("parseInt", BuiltinIntType(), []))
-        self.add_member("ord", FunctionType("ord", BuiltinIntType(), []))
+        self.add_member("ord", FunctionType("ord", BuiltinIntType(), [BuiltinIntType()]))
 
     def can_be_null(self, ctx: ParserRuleContext = None) -> bool:
         return False
