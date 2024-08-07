@@ -128,10 +128,10 @@ class SyntaxChecker(MxParserVisitor):
             l_type = l_type.subscript(ctx)
         return l_type, True
 
-    def raise_type_error(self, type_: TypeBase, ctx: antlr4.ParserRuleContext):
+    def raise_unary_type_error(self, type_: TypeBase, ctx: antlr4.ParserRuleContext):
         raise MxSyntaxError(f"Type error: Operator '{ctx.op.text}' cannot be applied to {type_.name}", ctx)
 
-    def raise_type_error(self, l_type: TypeBase, r_type: TypeBase, ctx: antlr4.ParserRuleContext):
+    def raise_binary_type_error(self, l_type: TypeBase, r_type: TypeBase, ctx: antlr4.ParserRuleContext):
         raise MxSyntaxError(
             f"Type error: Operator '{ctx.op.text}' cannot be applied to {l_type.name} and {r_type.name}", ctx)
 
@@ -143,7 +143,7 @@ class SyntaxChecker(MxParserVisitor):
         func, _ = self.visit(ctx.l)
         if ctx.expr_List():
             arg_types = [self.visit(arg)[0] for arg in ctx.expr_List().expression()]
-        else :
+        else:
             arg_types = []
         return func.call(arg_types, ctx), False
 
@@ -156,7 +156,7 @@ class SyntaxChecker(MxParserVisitor):
             # a ++ or a --
             l_type, l_assignable = self.visit(ctx.l)
             if l_type != builtin_types["int"]:
-                self.raise_type_error(l_type, ctx)
+                self.raise_unary_type_error(l_type, ctx)
             if not l_assignable:
                 self.raise_value_category_error(l_assignable, ctx)
             return l_type, False
@@ -165,17 +165,17 @@ class SyntaxChecker(MxParserVisitor):
             r_type, r_assignable = self.visit(ctx.r)
             if ctx.op.text in ["++", "--"]:
                 if r_type != builtin_types["int"]:
-                    self.raise_type_error(r_type, ctx)
+                    self.raise_unary_type_error(r_type, ctx)
                 if not r_assignable:
                     self.raise_value_category_error(r_assignable, ctx)
                 return r_type, True
-            if ctx.op.text in ["!", "~"]:
+            if ctx.op.text in ["!"]:
                 if r_type != builtin_types["bool"]:
-                    self.raise_type_error(r_type, ctx)
+                    self.raise_unary_type_error(r_type, ctx)
                 return r_type, False
-            if ctx.op.text in ["+", "-"]:
+            if ctx.op.text in ["+", "-", "~"]:
                 if r_type != builtin_types["int"]:
-                    self.raise_type_error(r_type, ctx)
+                    self.raise_unary_type_error(r_type, ctx)
                 return r_type, False
 
     def visitNew_Type(self, ctx: MxParser.New_TypeContext):
@@ -190,7 +190,8 @@ class SyntaxChecker(MxParserVisitor):
             else:
                 # new int[][] { {1, 2}, {3, 4} }
                 dimensions = len(ctx.Brack_Left_())
-                self.visitArray_Literal(ctx.array_Literal(), element_type.name, dimensions)
+                if ctx.array_Literal():
+                    self.visitArray_Literal(ctx.array_Literal(), element_type.name, dimensions)
                 return ArrayType(element_type, dimensions), False
         else:
             class_name = ctx.Identifier().getText()
@@ -217,44 +218,44 @@ class SyntaxChecker(MxParserVisitor):
         l_type, l_assignable = self.visit(ctx.l)
         r_type, _ = self.visit(ctx.r)
         if l_type == builtin_types["void"] or r_type == builtin_types["void"]:
-            self.raise_type_error(l_type, r_type, ctx)
+            self.raise_binary_type_error(l_type, r_type, ctx)
         if ctx.op.text == '=':
             if not l_assignable:
                 self.raise_value_category_error(l_assignable, ctx)
             if l_type != r_type:
                 if r_type != builtin_types["null"]:
-                    self.raise_type_error(l_type, r_type, ctx)
+                    self.raise_binary_type_error(l_type, r_type, ctx)
                 else:
                     if not l_type.can_be_null(ctx):
-                        self.raise_type_error(l_type, r_type, ctx)
+                        self.raise_binary_type_error(l_type, r_type, ctx)
             return l_type, True
         if ctx.op.text in ["-", "*", "/", "%", "<<", ">>", "&", "|", "^"]:
             if l_type != builtin_types["int"] or r_type != builtin_types["int"]:
-                self.raise_type_error(l_type, r_type, ctx)
+                self.raise_binary_type_error(l_type, r_type, ctx)
             return builtin_types["int"], False
         if ctx.op.text == "+":
             if l_type == builtin_types["int"] and r_type == builtin_types["int"]:
                 return builtin_types["int"], False
             if l_type == builtin_types["string"] and r_type == builtin_types["string"]:
                 return builtin_types["string"], False
-            self.raise_type_error(l_type, r_type, ctx)
+            self.raise_binary_type_error(l_type, r_type, ctx)
         if ctx.op.text in ["&&", "||"]:
             if l_type != builtin_types["bool"] or r_type != builtin_types["bool"]:
-                self.raise_type_error(l_type, r_type, ctx)
+                self.raise_binary_type_error(l_type, r_type, ctx)
             return builtin_types["bool"], False
         if ctx.op.text in ["<", ">", "<=", ">="]:
             if l_type != r_type and (l_type != builtin_types["int"] or l_type != builtin_types["string"]):
-                self.raise_type_error(l_type, r_type, ctx)
+                self.raise_binary_type_error(l_type, r_type, ctx)
             return builtin_types["bool"], False
         if ctx.op.text in ["==", "!="]:
             if l_type != r_type:
                 if l_type == builtin_types["null"]:
                     l_type, r_type = r_type, l_type
                 if r_type != builtin_types["null"]:
-                    self.raise_type_error(l_type, r_type, ctx)
+                    self.raise_binary_type_error(l_type, r_type, ctx)
                 else:
                     if not l_type.can_be_null(ctx):
-                        self.raise_type_error(l_type, r_type, ctx)
+                        self.raise_binary_type_error(l_type, r_type, ctx)
             return builtin_types["bool"], False
 
     def visitF_string(self, ctx: MxParser.F_stringContext):
@@ -284,7 +285,7 @@ class SyntaxChecker(MxParserVisitor):
     def visitClass_Definition(self, ctx: MxParser.Class_DefinitionContext):
         self.scope.enter_class_scope(ctx.Identifier().getText())
         if ctx.class_Ctor_Function():
-            self.visitClass_Ctor_Function(ctx.class_Ctor_Function())
+            self.visitClass_Ctor_Function(ctx.class_Ctor_Function()[0])
         for function in ctx.function_Definition():
             self.visitFunction_Definition(function)
         self.scope.exit_class_scope()
@@ -373,9 +374,10 @@ class SyntaxChecker(MxParserVisitor):
 if __name__ == '__main__':
     from antlr_generated.MxLexer import MxLexer
 
-    test_file_path = "./testcases/sema/basic-package/basic-41.mx"
+    # test_file_path = "./testcases/sema/basic-package/basic-41.mx"
     # test_file_path = "./testcases/sema/class-package/class-12.mx"
     # test_file_path = "./testcases/sema/array-package/array-2.mx"
+    test_file_path = "./testcases/sema/misc-package/misc-1.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     lexer = MxLexer(input_stream)
     parser = MxParser(antlr4.CommonTokenStream(lexer))

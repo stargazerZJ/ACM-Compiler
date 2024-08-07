@@ -97,7 +97,7 @@ f_string: (FStringHead (expression FStringMid)*? expression FStringTail) | FStri
 typename            : (BasicTypes | Identifier) ('[' ']')* ;
 new_Type :
     (BasicTypes new_Index)
-    | (BasicTypes ('[' ']')+ array_Literal)
+    | (BasicTypes ('[' ']')+ array_Literal?)
     | (Identifier new_Index? ('(' ')')?) ;
 new_Index           : ('[' good+=expression ']')+ ('[' ']')* ('[' bad+=expression ']')*;
 array_Literal : '{' (literal_List | array_Literal_List )? '}' ;
