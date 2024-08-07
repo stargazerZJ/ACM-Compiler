@@ -86,7 +86,11 @@ class SyntaxChecker(MxParserVisitor):
             if init_stmt.expression():
                 init_type, _ = self.visit(init_stmt.expression())
                 if init_type != type_:
-                    raise MxSyntaxError(f"Type mismatch: expected {type_.name}, got {init_type.name}", ctx)
+                    if init_type == builtin_types["null"]:
+                        if not type_.can_be_null(ctx):
+                            raise MxSyntaxError(f"Type mismatch: expected {type_.name}, got null", ctx)
+                    else:
+                        raise MxSyntaxError(f"Type mismatch: expected {type_.name}, got {init_type.name}", ctx)
             if init_stmt.array_Literal():
                 if not isinstance(type_, ArrayType):
                     raise MxSyntaxError(f"Type mismatch: expected {type_.name}, got array", ctx)
@@ -363,7 +367,7 @@ class SyntaxChecker(MxParserVisitor):
 if __name__ == '__main__':
     from antlr_generated.MxLexer import MxLexer
 
-    test_file_path = "./testcases/sema/basic-package/basic-36.mx"
+    test_file_path = "./testcases/sema/basic-package/basic-41.mx"
     # test_file_path = "./testcases/sema/class-package/class-12.mx"
     # test_file_path = "./testcases/sema/array-package/array-2.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
