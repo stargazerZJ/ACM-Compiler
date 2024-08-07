@@ -148,8 +148,8 @@ class SyntaxChecker(MxParserVisitor):
         return func.call(arg_types, ctx), False
 
     def visitMember(self, ctx: MxParser.MemberContext):
-        l_type, l_assignable = self.visit(ctx.l)
-        return l_type.get_member(ctx.Identifier().getText(), ctx), l_assignable
+        l_type, _ = self.visit(ctx.l)
+        return l_type.get_member(ctx.Identifier().getText(), ctx), True
 
     def visitUnary(self, ctx: MxParser.UnaryContext):
         if ctx.l:
