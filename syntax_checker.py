@@ -372,8 +372,13 @@ class SyntaxChecker(MxParserVisitor):
             else:
                 ret_type, _ = self.visit(ctx.expression())
             if ret_type != self.scope.get_return_type():
-                raise MxSyntaxError(
-                    f"Return type mismatch: expected {self.scope.get_return_type().name}, got {ret_type.name}", ctx)
+                if ret_type == builtin_types["null"]:
+                    if not self.scope.get_return_type().can_be_null(ctx):
+                        raise MxSyntaxError(
+                            f"Return type mismatch: expected {self.scope.get_return_type().name}, got null", ctx)
+                else:
+                    raise MxSyntaxError(
+                        f"Return type mismatch: expected {self.scope.get_return_type().name}, got {ret_type.name}", ctx)
 
 
 if __name__ == '__main__':
