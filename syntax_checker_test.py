@@ -95,6 +95,8 @@ class SyntaxTester:
 
         if all_passed:
             self.log_result(f"All test cases passed in directory: {directory_path}")
+        else:
+            self.log_result(f"Some test cases failed in directory: {directory_path}")
         return all_passed
 
     def run_tests(self, path):
