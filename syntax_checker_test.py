@@ -15,7 +15,7 @@ class SyntaxTester:
         self.continue_on_fail = continue_on_fail
 
     def check_syntax(self, file_path: str):
-        input_stream = antlr4.FileStream(file_path)
+        input_stream = antlr4.FileStream(file_path, encoding='utf-8')
         lexer = MxLexer(input_stream)
         token_stream = antlr4.CommonTokenStream(lexer)
         parser = MxParser(token_stream)
@@ -30,7 +30,7 @@ class SyntaxTester:
     def parse_verdict_and_comment(self, file_path):
         verdict = None
         comment = None
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8') as file:
             for line in file:
                 if line.startswith('Verdict:'):
                     verdict = line.split(':')[-1].strip() == 'Success'
@@ -41,21 +41,35 @@ class SyntaxTester:
         return verdict, comment
 
     def log_result(self, message):
-        if self.verbose or "FAILED" in message:
+        print(message)
+
+    def log_verbose(self, message):
+        if self.verbose:
             print(message)
 
     def test_file(self, file_path):
         expected_pass, verdict_comment = self.parse_verdict_and_comment(file_path)
-        actual_pass, error_message = self.check_syntax(file_path)
+        log_message = ""
+        try:
+            actual_pass, error_message = self.check_syntax(file_path)
+            test_pass = actual_pass == expected_pass
+            if test_pass:
+                log_message += f"PASSED: {file_path}"
+            else:
+                log_message += f"FAILED: {file_path} | Expected: {expected_pass}, Got: {actual_pass}"
+            if error_message:
+                log_message += f" | Error: {error_message}"
+        except Exception as e:
+            log_message += f"FAILED: {file_path} | Unexpected error: {e}"
+            test_pass = False
+        if verdict_comment:
+            log_message += f" | Comment: {verdict_comment}"
 
-        if actual_pass == expected_pass:
-            if self.verbose:
-                self.log_result(f"PASSED: {file_path} | Error: {error_message} | Comment: {verdict_comment}")
+        if test_pass:
+            self.log_verbose(log_message)
             return True
         else:
-            self.log_result(
-                f"FAILED: {file_path} | Expected: {expected_pass}, Got: {actual_pass} | Error: {error_message} | Comment: {verdict_comment}"
-            )
+            self.log_result(log_message)
             return False
 
     def test_directory(self, directory_path):

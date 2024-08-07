@@ -363,7 +363,7 @@ if __name__ == '__main__':
     # test_file_path = "./testcases/sema/basic-package/basic-1.mx"
     # test_file_path = "./testcases/sema/class-package/class-12.mx"
     test_file_path = "./testcases/sema/array-package/array-2.mx"
-    input_stream = antlr4.FileStream(test_file_path)
+    input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     lexer = MxLexer(input_stream)
     token_stream = antlr4.CommonTokenStream(lexer)
     parser = MxParser(token_stream)
