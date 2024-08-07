@@ -98,19 +98,21 @@ class SyntaxTester:
         return all_passed
 
     def run_tests(self, path):
-        path = self.testcases_dir / Path(path)
-        if path.is_file() and path.suffix == '.mx':
-            self.test_file(path)
-        elif path.is_dir():
-            self.test_directory(path)
+        if path:
+            path = self.testcases_dir / Path(path)
+            if path.is_file() and path.suffix == '.mx':
+                self.test_file(path)
+            elif path.is_dir():
+                self.test_directory(path)
         else:
+            path = self.testcases_dir
             for subdir in path.iterdir():
                 if subdir.is_dir():
                     self.test_directory(subdir)
 
 def main():
     parser = argparse.ArgumentParser(description="MxLang Syntax Checker Test Script")
-    parser.add_argument('target', nargs='?', default='testcases/sema',
+    parser.add_argument('target', nargs='?', default='',
                         help='File or directory to test, e.g. array-package/array-1.mx ')
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output, log every test result')
     parser.add_argument('--continue-on-fail', action='store_true', help='Continue testing even if a test fails')
