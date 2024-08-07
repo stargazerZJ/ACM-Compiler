@@ -3,7 +3,7 @@ import argparse
 import os
 from pathlib import Path
 from syntax_checker import SyntaxChecker
-from syntax_error import MxSyntaxError
+from syntax_error import MxSyntaxError, ThrowingErrorListener
 import antlr4
 from antlr_generated.MxParser import MxParser
 from antlr_generated.MxLexer import MxLexer
@@ -17,11 +17,18 @@ class SyntaxTester:
     def check_syntax(self, file_path: str):
         input_stream = antlr4.FileStream(file_path, encoding='utf-8')
         lexer = MxLexer(input_stream)
-        token_stream = antlr4.CommonTokenStream(lexer)
-        parser = MxParser(token_stream)
-        tree = parser.file_Input()
-        checker = SyntaxChecker()
+        parser = MxParser(antlr4.CommonTokenStream(lexer))
+
+        # Attach error listeners
+        error_listener = ThrowingErrorListener()
+        lexer.removeErrorListeners()
+        lexer.addErrorListener(error_listener)
+        parser.removeErrorListeners()
+        parser.addErrorListener(error_listener)
+
         try:
+            tree = parser.file_Input()
+            checker = SyntaxChecker()
             checker.visit(tree)
             return True, ""
         except MxSyntaxError as e:

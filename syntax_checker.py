@@ -3,7 +3,7 @@ from antlr_generated.MxParserVisitor import MxParserVisitor
 from antlr_generated.MxParser import MxParser
 from type import TypeBase, FunctionType, ArrayType, ClassType, builtin_functions, builtin_types
 from scope import Scope, GlobalScope, ScopeBase
-from syntax_error import MxSyntaxError
+from syntax_error import MxSyntaxError, ThrowingErrorListener
 
 
 class SyntaxChecker(MxParserVisitor):
@@ -200,7 +200,10 @@ class SyntaxChecker(MxParserVisitor):
                 return class_type, False
 
     def visitNew_Index(self, ctx: MxParser.New_IndexContext):
-        for expression in ctx.expression():
+        if ctx.bad:
+            # e.g. new int[10][][10]
+            raise MxSyntaxError("Size of innermost dimension cannot be specified", ctx)
+        for expression in ctx.good:
             type_, _ = self.visit(expression)
             if type_ != builtin_types["int"]:
                 raise MxSyntaxError("Array index should be int", ctx)
@@ -360,16 +363,23 @@ class SyntaxChecker(MxParserVisitor):
 if __name__ == '__main__':
     from antlr_generated.MxLexer import MxLexer
 
-    # test_file_path = "./testcases/sema/basic-package/basic-1.mx"
+    test_file_path = "./testcases/sema/basic-package/basic-36.mx"
     # test_file_path = "./testcases/sema/class-package/class-12.mx"
-    test_file_path = "./testcases/sema/array-package/array-2.mx"
+    # test_file_path = "./testcases/sema/array-package/array-2.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     lexer = MxLexer(input_stream)
-    token_stream = antlr4.CommonTokenStream(lexer)
-    parser = MxParser(token_stream)
-    tree = parser.file_Input()
-    checker = SyntaxChecker()
+    parser = MxParser(antlr4.CommonTokenStream(lexer))
+
+    # Attach error listeners
+    error_listener = ThrowingErrorListener()
+    lexer.removeErrorListeners()
+    lexer.addErrorListener(error_listener)
+    parser.removeErrorListeners()
+    parser.addErrorListener(error_listener)
+
     try:
+        tree = parser.file_Input()
+        checker = SyntaxChecker()
         checker.visit(tree)
         print("Syntax check passed")
     except MxSyntaxError as e:
