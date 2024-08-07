@@ -120,13 +120,13 @@ class SyntaxChecker(MxParserVisitor):
         return self.visit(ctx.l)
 
     def visitSubscript(self, ctx: MxParser.SubscriptContext):
-        l_type, l_assignable = self.visit(ctx.l)
+        l_type, _ = self.visit(ctx.l)
         for subscript in ctx.sub:
             sub_type, _ = self.visit(subscript)
             if sub_type != builtin_types["int"]:
                 raise MxSyntaxError("Subscript should be int", ctx)
             l_type = l_type.subscript(ctx)
-        return l_type, l_assignable
+        return l_type, True
 
     def raise_type_error(self, type_: TypeBase, ctx: antlr4.ParserRuleContext):
         raise MxSyntaxError(f"Type error: Operator '{ctx.op.text}' cannot be applied to {type_.name}", ctx)
