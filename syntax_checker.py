@@ -117,10 +117,12 @@ class SyntaxChecker(MxParserVisitor):
 
     def visitSubscript(self, ctx: MxParser.SubscriptContext):
         l_type, l_assignable = self.visit(ctx.l)
-        r_type, _ = self.visit(ctx.r)
-        if r_type != builtin_types["int"]:
-            raise MxSyntaxError("Subscript should be int", ctx)
-        return l_type.subscript(ctx), l_assignable
+        for subscript in ctx.sub:
+            sub_type, _ = self.visit(subscript)
+            if sub_type != builtin_types["int"]:
+                raise MxSyntaxError("Subscript should be int", ctx)
+            l_type = l_type.subscript(ctx)
+        return l_type, l_assignable
 
     def raise_type_error(self, type_: TypeBase, ctx: antlr4.ParserRuleContext):
         raise MxSyntaxError(f"Type error: Operator '{ctx.op.text}' cannot be applied to {type_.name}", ctx)
@@ -134,8 +136,12 @@ class SyntaxChecker(MxParserVisitor):
         raise MxSyntaxError(f"Value category error: Cannot assign to a {category}", ctx)
 
     def visitFunction(self, ctx: MxParser.FunctionContext):
-        func = self.scope.get_variable(ctx.Identifier().getText(), ctx)
-        return func.call([self.visit(arg)[0] for arg in ctx.expression()], ctx), False
+        func, _ = self.visit(ctx.l)
+        if ctx.expr_List():
+            arg_types = [self.visit(arg)[0] for arg in ctx.expr_List().expression()]
+        else :
+            arg_types = []
+        return func.call(arg_types, ctx), False
 
     def visitMember(self, ctx: MxParser.MemberContext):
         l_type, l_assignable = self.visit(ctx.l)
@@ -280,9 +286,10 @@ class SyntaxChecker(MxParserVisitor):
         ret_type = self.scope.get_type(*self.visitTypename(ctx.function_Argument().typename()), ctx)
         self.scope.set_return_type(ret_type)
         self.scope.push_scope()
-        for argument in ctx.function_Param_List().function_Argument():
-            arg_type = self.scope.get_type(*self.visitTypename(argument.typename()), argument)
-            self.scope.add_variable(argument.Identifier().getText(), arg_type, argument)
+        if ctx.function_Param_List():
+            for argument in ctx.function_Param_List().function_Argument():
+                arg_type = self.scope.get_type(*self.visitTypename(argument.typename()), argument)
+                self.scope.add_variable(argument.Identifier().getText(), arg_type, argument)
         self.visitBlock_Stmt(ctx.block_Stmt())
         self.scope.pop_scope()
 
@@ -354,11 +361,17 @@ if __name__ == '__main__':
     from antlr_generated.MxLexer import MxLexer
 
     # test_file_path = "./testcases/sema/basic-package/basic-1.mx"
-    test_file_path = "./testcases/sema/class-package/class-12.mx"
+    # test_file_path = "./testcases/sema/class-package/class-12.mx"
+    test_file_path = "./testcases/sema/array-package/array-2.mx"
     input_stream = antlr4.FileStream(test_file_path)
     lexer = MxLexer(input_stream)
     token_stream = antlr4.CommonTokenStream(lexer)
     parser = MxParser(token_stream)
     tree = parser.file_Input()
     checker = SyntaxChecker()
-    checker.visit(tree)
+    try:
+        checker.visit(tree)
+        print("Syntax check passed")
+    except MxSyntaxError as e:
+        print(f"Syntax check failed: {e}")
+        exit(1)
