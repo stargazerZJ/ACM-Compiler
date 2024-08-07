@@ -326,6 +326,12 @@ class SyntaxChecker(MxParserVisitor):
             self.visitStmt(ctx.stmt())
             self.scope.pop_scope()
 
+    def visitBlock_Stmt(self, ctx: MxParser.Block_StmtContext):
+        self.scope.push_scope()
+        for stmt in ctx.stmt():
+            self.visitStmt(stmt)
+        self.scope.pop_scope()
+
     def visitFor_Stmt(self, ctx: MxParser.For_StmtContext):
         self.scope.push_scope(is_loop_scope=True)
         if ctx.initializer:
