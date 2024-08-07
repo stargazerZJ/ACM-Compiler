@@ -47,7 +47,7 @@ class SyntaxChecker(MxParserVisitor):
         func_name = ctx.function_Argument().Identifier().getText()
         ret_type = scope.get_type(*self.visitTypename(ctx.function_Argument().typename()), ctx)
         if ctx.function_Param_List():
-            param_types = [scope.get_type(*self.visitTypename(ctx.function_Argument().typename()), ctx)
+            param_types = [scope.get_type(*self.visitTypename(arg.typename()), ctx)
                            for arg in ctx.function_Param_List().function_Argument()]
         else:
             param_types = []
