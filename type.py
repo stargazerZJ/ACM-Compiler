@@ -18,7 +18,6 @@ class TypeBase:
     def __ne__(self, other: object) -> bool:
         return not self.__eq__(other)
 
-
     def add_member(self, name: str, typ: "TypeBase", ctx: ParserRuleContext = None):
         if name in self.members:
             raise MxSyntaxError(f"Type '{self.name}' already has a member named '{name}'", ctx)
@@ -54,8 +53,13 @@ class FunctionType(TypeBase):
                 f"Function call error: expected {len(self.param_types)} parameters, got {len(param_types)}", ctx)
         for expected, actual in zip(self.param_types, param_types):
             if expected != actual:
-                raise MxSyntaxError(
-                    f"Function call error: expected parameter of type {expected.name}, got {actual.name}", ctx)
+                if actual == builtin_types["null"]:
+                    if not expected.can_be_null(ctx):
+                        raise MxSyntaxError(
+                            f"Function call error: expected parameter of type {expected.name}, got null", ctx)
+                else:
+                    raise MxSyntaxError(
+                        f"Function call error: expected parameter of type {expected.name}, got {actual.name}", ctx)
         return self.ret_type
 
 
