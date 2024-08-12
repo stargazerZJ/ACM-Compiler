@@ -111,8 +111,11 @@ class SyntaxChecker(MxParserVisitor):
                 if literal_type != builtin_types[typename]:
                     raise MxSyntaxError(f"Type mismatch: expected {typename}, got {literal_type.name}", ctx)
         else:
-            if not ctx.array_Literal_List():
+            if ctx.literal_List():
                 raise MxSyntaxError("Array literal has too few dimensions", ctx)
+            if not ctx.array_Literal_List():
+                # {{}}
+                return
             for literal in ctx.array_Literal_List().array_Literal():
                 self.visitArray_Literal(literal, typename, dimension - 1)
 
