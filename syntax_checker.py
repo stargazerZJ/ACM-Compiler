@@ -392,8 +392,9 @@ if __name__ == '__main__':
     # test_file_path = "./testcases/sema/array-package/array-2.mx"
     # test_file_path = "./testcases/sema/misc-package/misc-1.mx"
     # test_file_path = "./testcases/sema/const-array-package/const_array1.mx"
-    test_file_path = "./testcases/sema/scope-package/scope-1.mx"
-    input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
+    # test_file_path = "./testcases/sema/scope-package/scope-1.mx"
+    # input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
+    input_stream = antlr4.StdinStream()
     lexer = MxLexer(input_stream)
     parser = MxParser(antlr4.CommonTokenStream(lexer))
 
