@@ -103,8 +103,8 @@ class Scope(ScopeBase):
     def add_variable(self, name: str, typ: TypeBase, ctx: ParserRuleContext = None):
         if name in self.scope_stack[-1].variables:
             raise MxSyntaxError(f"Variable '{name}' already defined", ctx)
-        # if name in self.global_scope.global_functions:
-        #     raise MxSyntaxError(f"Variable '{name}' already defined as a function", ctx)
+        if name in self.global_scope.global_functions:
+            raise MxSyntaxError(f"Variable '{name}' already defined as a function", ctx)
         self.scope_stack[-1].variables[name] = typ
 
     def push_scope(self, is_loop_scope: bool = False):
