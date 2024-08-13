@@ -386,6 +386,7 @@ class SyntaxChecker(MxParserVisitor):
 
 if __name__ == '__main__':
     from antlr_generated.MxLexer import MxLexer
+    import sys
 
     # test_file_path = "./testcases/sema/basic-package/basic-41.mx"
     # test_file_path = "./testcases/sema/class-package/class-12.mx"
@@ -409,7 +410,7 @@ if __name__ == '__main__':
         tree = parser.file_Input()
         checker = SyntaxChecker()
         checker.visit(tree)
-        print("Syntax check passed")
+        print("Syntax check passed", file=sys.stderr)
     except MxSyntaxError as e:
-        print(f"Syntax check failed: {e}")
+        print(f"Syntax check failed: {e}", file=sys.stderr)
         exit(1)
