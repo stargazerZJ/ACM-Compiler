@@ -42,14 +42,11 @@ class MxSyntaxError(Exception):
             return "Type Mismatch"
         if "type mismatch" in original_message:
             return "Type Mismatch"
-        if "Syntax error: mismatched input 'this' expecting Identifier at line 12, column 10" in original_message:
-            return "Invalid Identifier"
         if "already has a member named" in original_message:
             return "Multiple Definitions"
         if "already defined" in original_message:
             return "Multiple Definitions"
-        if "Function call error: expected parameter of type int, got AI" in original_message:
-            # Testcase: basic-26
+        if "Function call error" in original_message:
             return "Missing Return Statement"
         if "Value category error" in original_message:
             return "Type Mismatch"
