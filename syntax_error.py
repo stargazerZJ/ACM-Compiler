@@ -23,7 +23,7 @@ class MxSyntaxError(Exception):
         return f"{self.message}{location_info}"
 
     def standardize(self):
-        '''Standardize the error message to format required by the test cases.'''
+        """Standardize the error message to format required by the test cases."""
         # Error Types:
         # 1. Invalid Identifier
         # 2. Multiple Definitions
