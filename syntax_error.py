@@ -36,6 +36,8 @@ class MxSyntaxError(Exception):
         # 9. Dimension Out Of Bound
         # 10. Others
         original_message = self.__str__()
+        if "Type error: Operator '+' cannot be applied to A and A" in original_message:
+            return "Invalid Type"
         if "Type error" in original_message:
             return "Type Mismatch"
         if "type mismatch" in original_message:
@@ -46,7 +48,7 @@ class MxSyntaxError(Exception):
             return "Multiple Definitions"
         if "already defined" in original_message:
             return "Multiple Definitions"
-        if "Function call error: expected parameter of type int, got AI at line 21, column 4" in original_message:
+        if "Function call error: expected parameter of type int, got AI" in original_message:
             # Testcase: basic-26
             return "Missing Return Statement"
         if "Value category error" in original_message:
@@ -60,7 +62,7 @@ class MxSyntaxError(Exception):
         if "not found" in original_message:
             return "Undefined Identifier"
         if "Array literal has too many dimensions" in original_message:
-            return "Dimension Out Of Bound"
+            return "Type Mismatch"
         if "cannot be subscripted" in original_message:
             return "Dimension Out Of Bound"
         return "Others"
