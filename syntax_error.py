@@ -53,6 +53,17 @@ class MxSyntaxError(Exception):
             return "Type Mismatch"
         if "Syntax error" in original_message:
             return "Invalid Identifier"
+        if "No loop to" in original_message:
+            return "Invalid Control Flow"
+        if "Condition should be bool" in original_message:
+            return "Invalid Type"
+        if "not found" in original_message:
+            return "Undefined Identifier"
+        if "Array literal has too many dimensions" in original_message:
+            return "Dimension Out Of Bound"
+        if "cannot be subscripted" in original_message:
+            return "Dimension Out Of Bound"
+        return "Others"
 
 
 class ThrowingErrorListener(ErrorListener):
