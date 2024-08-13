@@ -413,4 +413,5 @@ if __name__ == '__main__':
         print("Syntax check passed", file=sys.stderr)
     except MxSyntaxError as e:
         print(f"Syntax check failed: {e}", file=sys.stderr)
+        print(e.standardize())
         exit(1)

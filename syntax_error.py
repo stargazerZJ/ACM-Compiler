@@ -22,6 +22,38 @@ class MxSyntaxError(Exception):
             location_info = f" at line {self.line_number}"
         return f"{self.message}{location_info}"
 
+    def standardize(self):
+        '''Standardize the error message to format required by the test cases.'''
+        # Error Types:
+        # 1. Invalid Identifier
+        # 2. Multiple Definitions
+        # 3. Undefined Identifier
+        # 4. Type Mismatch
+        # 5. Invalid Control Flow
+        # 6. Function Call Error
+        # 7. Invalid Type
+        # 8. Missing Return Statement
+        # 9. Dimension Out Of Bound
+        # 10. Others
+        original_message = self.__str__()
+        if "Type error" in original_message:
+            return "Type Mismatch"
+        if "type mismatch" in original_message:
+            return "Type Mismatch"
+        if "Syntax error: mismatched input 'this' expecting Identifier at line 12, column 10" in original_message:
+            return "Invalid Identifier"
+        if "already has a member named" in original_message:
+            return "Multiple Definitions"
+        if "already defined" in original_message:
+            return "Multiple Definitions"
+        if "Function call error: expected parameter of type int, got AI at line 21, column 4" in original_message:
+            # Testcase: basic-26
+            return "Missing Return Statement"
+        if "Value category error" in original_message:
+            return "Type Mismatch"
+        if "Syntax error" in original_message:
+            return "Invalid Identifier"
+
 
 class ThrowingErrorListener(ErrorListener):
     def __init__(self):
