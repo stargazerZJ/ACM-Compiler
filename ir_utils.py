@@ -165,7 +165,12 @@ class Renamer:
         return self.get_name(name)
 
 
-renamer = Renamer()
+renamer: Renamer = Renamer()
+
+
+def reset_renamer():
+    global renamer
+    renamer = Renamer()
 
 
 class BlockChain:

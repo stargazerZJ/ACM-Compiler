@@ -4,10 +4,13 @@ from antlr_generated.MxParser import MxParser
 from type import TypeBase, FunctionType, ArrayType, ClassType, builtin_functions, builtin_types
 from scope import Scope, GlobalScope, ScopeBase
 from syntax_error import MxSyntaxError, ThrowingErrorListener
+from ir_utils import renamer, reset_renamer
+from syntax_recorder import SyntaxRecorder, VariableInfo
 
 
 class SyntaxChecker(MxParserVisitor):
     scope: Scope
+    recorder: SyntaxRecorder
 
     def __init__(self):
         super().__init__()
@@ -15,9 +18,12 @@ class SyntaxChecker(MxParserVisitor):
     def visitFile_Input(self, ctx: MxParser.File_InputContext):
         global_scope = self.register_class_names_and_functions(ctx)
         self.scope = Scope(global_scope)
+        self.recorder = SyntaxRecorder(global_scope)
+        reset_renamer()
         for class_ctx in ctx.class_Definition():
             self.register_class_members(class_ctx)
-        return self.visitChildren(ctx)
+        self.visitChildren(ctx)
+        return self.recorder
 
     def register_class_names_and_functions(self, ctx: MxParser.File_InputContext) -> GlobalScope:
         global_scope = GlobalScope()
@@ -97,7 +103,9 @@ class SyntaxChecker(MxParserVisitor):
                 if not isinstance(type_, ArrayType):
                     raise MxSyntaxError(f"Type mismatch: expected {type_.name}, got array", ctx)
                 self.visitArray_Literal(init_stmt.array_Literal(), typename, dimension)
-            self.scope.add_variable(init_stmt.Identifier().getText(), type_, ctx)
+            ir_prefix = "@" if self.scope.is_global() else "%"
+            ir_name = renamer.get_name_from_ctx(ir_prefix + init_stmt.Identifier().getText(), init_stmt)
+            self.scope.add_variable(init_stmt.Identifier().getText(), type_, ctx, ir_name)
 
     def visitArray_Literal(self, ctx: MxParser.Array_LiteralContext, typename: str = "", dimension: int = 0):
         if dimension == 1:
@@ -136,10 +144,10 @@ class SyntaxChecker(MxParserVisitor):
             l_type = l_type.subscript(ctx)
         return l_type, True
 
-    def raise_unary_type_error(self, type_: TypeBase, ctx: antlr4.ParserRuleContext):
+    def raise_unary_type_error(self, type_: TypeBase, ctx: MxParser.UnaryContext):
         raise MxSyntaxError(f"Type error: Operator '{ctx.op.text}' cannot be applied to {type_.name}", ctx)
 
-    def raise_binary_type_error(self, l_type: TypeBase, r_type: TypeBase, ctx: antlr4.ParserRuleContext):
+    def raise_binary_type_error(self, l_type: TypeBase, r_type: TypeBase, ctx: MxParser.BinaryContext):
         raise MxSyntaxError(
             f"Type error: Operator '{ctx.op.text}' cannot be applied to {l_type.name} and {r_type.name}", ctx)
 
@@ -285,7 +293,9 @@ class SyntaxChecker(MxParserVisitor):
 
     def visitAtom(self, ctx: MxParser.AtomContext):
         # Note: assigning to a function is undefined behavior
-        return self.scope.get_variable(ctx.Identifier().getText(), ctx), True
+        type_, name = self.scope.get_variable(ctx.Identifier().getText(), ctx)
+        self.recorder.record(ctx, VariableInfo(type_, name))
+        return type_, True
 
     def visitThis(self, ctx: MxParser.ThisContext):
         return self.scope.get_this_type(), False
@@ -305,7 +315,8 @@ class SyntaxChecker(MxParserVisitor):
         if ctx.function_Param_List():
             for argument in ctx.function_Param_List().function_Argument():
                 arg_type = self.scope.get_type(*self.visitTypename(argument.typename()), argument)
-                self.scope.add_variable(argument.Identifier().getText(), arg_type, argument)
+                ir_name = renamer.get_name_from_ctx("%" + argument.Identifier().getText(), argument)
+                self.scope.add_variable(argument.Identifier().getText(), arg_type, argument, ir_name)
         self.visitBlock_Stmt(ctx.block_Stmt())
         self.scope.pop_scope()
 

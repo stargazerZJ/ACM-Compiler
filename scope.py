@@ -7,10 +7,10 @@ class ScopeBase:
     def get_type(self, name: str, dimensions: int = 0, ctx: ParserRuleContext = None) -> TypeBase:
         raise MxSyntaxError(f"Type '{name}' not found", ctx)
 
-    def get_variable(self, name: str, ctx: ParserRuleContext = None) -> TypeBase:
+    def get_variable(self, name: str, ctx: ParserRuleContext) -> tuple[TypeBase, str]:
         raise MxSyntaxError(f"Variable '{name}' not found", ctx)
 
-    def add_variable(self, name: str, typ: TypeBase, ctx: ParserRuleContext = None):
+    def add_variable(self, name: str, typ: TypeBase, ctx: ParserRuleContext, ir_name: str):
         raise MxSyntaxError(f"Variable '{name}' already defined", ctx)
 
     def push_scope(self, is_loop_scope: bool = False):
@@ -70,7 +70,7 @@ class GlobalScope(ScopeBase):
 
 
 class LocalScope:
-    variables: dict[str, TypeBase]
+    variables: dict[str, tuple[TypeBase, str]]
     is_loop_scope: bool
 
     def __init__(self, is_loop_scope: bool):
@@ -92,20 +92,21 @@ class Scope(ScopeBase):
     def get_type(self, name: str, dimensions=0, ctx: ParserRuleContext = None) -> TypeBase:
         return self.global_scope.get_type(name, dimensions, ctx)
 
-    def get_variable(self, name: str, ctx: ParserRuleContext = None) -> TypeBase:
+    def get_variable(self, name: str, ctx: ParserRuleContext) -> tuple[TypeBase, str]:
         for scope in reversed(self.scope_stack):
             if name in scope.variables:
                 return scope.variables[name]
         if name in self.global_scope.global_functions:
-            return self.global_scope.global_functions[name]
+            func = self.global_scope.global_functions[name]
+            return func, func.ir_name
         raise MxSyntaxError(f"Variable '{name}' not found", ctx)
 
-    def add_variable(self, name: str, typ: TypeBase, ctx: ParserRuleContext = None):
+    def add_variable(self, name: str, typ: TypeBase, ctx: ParserRuleContext, ir_name: str):
         if name in self.scope_stack[-1].variables:
             raise MxSyntaxError(f"Variable '{name}' already defined", ctx)
         if name in self.global_scope.global_functions:
             raise MxSyntaxError(f"Variable '{name}' already defined as a function", ctx)
-        self.scope_stack[-1].variables[name] = typ
+        self.scope_stack[-1].variables[name] = typ, ir_name
 
     def push_scope(self, is_loop_scope: bool = False):
         self.scope_stack.append(LocalScope(is_loop_scope))
@@ -123,7 +124,7 @@ class Scope(ScopeBase):
         self.this_type = self.global_scope.get_type(class_name)
         self.scope_stack.append(LocalScope(False))
         for name, typ in self.this_type.members.items():
-            self.scope_stack[-1].variables[name] = typ
+            self.scope_stack[-1].variables[name] = typ, "TODO:_CLASS_MEMBER_IR_NAME"
 
     def exit_class_scope(self):
         self.this_type = None
@@ -139,3 +140,6 @@ class Scope(ScopeBase):
 
     def set_return_type(self, typ: TypeBase):
         self.return_type = typ
+
+    def is_global(self):
+        return len(self.scope_stack) == 1

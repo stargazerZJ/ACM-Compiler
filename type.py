@@ -5,10 +5,12 @@ from syntax_error import MxSyntaxError
 class TypeBase:
     name: str
     members: dict[str, "TypeBase"]
+    ir_name: str = None
 
-    def __init__(self, name: str):
+    def __init__(self, name: str, ir_name: str = None):
         self.name = name
         self.members = {}
+        self.ir_name = ir_name
 
     def __eq__(self, other: object) -> bool:
         if isinstance(other, TypeBase):
@@ -81,7 +83,7 @@ class ArrayType(TypeBase):
 
 class BuiltinIntType(TypeBase):
     def __init__(self):
-        super().__init__("int")
+        super().__init__("int", "i32")
 
     def can_be_null(self, ctx: ParserRuleContext = None) -> bool:
         return False
@@ -89,7 +91,7 @@ class BuiltinIntType(TypeBase):
 
 class BuiltinBoolType(TypeBase):
     def __init__(self):
-        super().__init__("bool")
+        super().__init__("bool", "i1")
 
     def can_be_null(self, ctx: ParserRuleContext = None) -> bool:
         return False
@@ -97,7 +99,7 @@ class BuiltinBoolType(TypeBase):
 
 class BuiltinVoidType(TypeBase):
     def __init__(self):
-        super().__init__("void")
+        super().__init__("void", "void")
 
 
 class BuiltinStringType(TypeBase):
@@ -118,8 +120,8 @@ class BuiltinNullType(TypeBase):
 
 
 class ClassType(TypeBase):
-    def __init__(self, name: str):
-        super().__init__(name)
+    def __init__(self, name: str, ir_name: str = None):
+        super().__init__(name, ir_name)
 
 
 builtin_types = {
