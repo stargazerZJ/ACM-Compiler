@@ -4,18 +4,19 @@ from antlr4 import ParserRuleContext
 
 
 class IRCmdBase:
-    pass
+    def llvm(self) -> str:
+        raise NotImplementedError()
 
 
 class IRBinOp(IRCmdBase):
-    def __init__(self, op: str, dest: str, lhs: str, rhs: str, typ: str):
+    def __init__(self, dest: str, op: str, lhs: str, rhs: str, typ: str):
         self.op = op
         self.dest = dest
         self.lhs = lhs
         self.rhs = rhs
         self.typ = typ
 
-    def __str__(self):
+    def llvm(self):
         return f"{self.dest} = {self.op} {self.typ} {self.lhs}, {self.rhs}"
 
 
@@ -25,7 +26,7 @@ class IRLoad(IRCmdBase):
         self.src = src
         self.typ = typ
 
-    def __str__(self):
+    def llvm(self):
         return f"{self.dest} = load {self.typ}, ptr {self.src}"
 
 
@@ -35,7 +36,7 @@ class IRStore(IRCmdBase):
         self.src = src
         self.typ = typ
 
-    def __str__(self):
+    def llvm(self):
         return f"store {self.typ} {self.src}, ptr {self.dest}"
 
 
@@ -44,7 +45,7 @@ class IRAlloca(IRCmdBase):
         self.dest = dest
         self.typ = typ
 
-    def __str__(self):
+    def llvm(self):
         return f"{self.dest} = alloca {self.typ}"
 
 
@@ -59,7 +60,7 @@ class BBExit:
     def get_dest(self) -> "BasicBlock":
         return self.block.successors[self.idx]
 
-    def __str__(self):
+    def llvm(self):
         return f"{self.get_dest().name}"
 
 
@@ -73,10 +74,10 @@ class BasicBlock:
         self.name = name
         self.cmds = []
 
-    def __str__(self):
+    def llvm(self):
         ret = f"{self.name}:"
         for cmd in self.cmds:
-            ret += f"\n  {cmd}"
+            ret += f"\n  {cmd.llvm()}"
         ret += "\n"
         return ret
 
@@ -94,7 +95,7 @@ class UnreachableBlock(BasicBlock):
     def add_cmd(self, cmd: IRCmdBase):
         pass
 
-    def __str__(self):
+    def llvm(self):
         return "unreachable:\n  unreachable\n"
 
 
@@ -105,7 +106,7 @@ class IRJump(IRCmdBase):
     def __init__(self, dest: BBExit):
         self.dest = dest
 
-    def __str__(self):
+    def llvm(self):
         return f"br label %{self.dest}"
 
 
@@ -115,7 +116,7 @@ class IRBranch(IRCmdBase):
         self.true_dest = true_dest
         self.false_dest = false_dest
 
-    def __str__(self):
+    def llvm(self):
         return f"br i1 {self.cond}, label %{self.true_dest}, label %{self.false_dest}"
 
 
@@ -124,7 +125,7 @@ class IRRet(IRCmdBase):
         self.typ = typ
         self.value = value
 
-    def __str__(self):
+    def llvm(self):
         return f"ret {self.typ} {self.value}"
 
 
@@ -134,7 +135,7 @@ class IRPhi(IRCmdBase):
         self.typ = typ
         self.values = values
 
-    def __str__(self):
+    def llvm(self):
         ret = f"{self.dest} = phi {self.typ} "
         for value in self.values:
             ret += f"[{value[1]}, %{value[0].block.name}], "
@@ -149,7 +150,8 @@ class Renamer:
     def __init__(self):
         self.name_map = {}
 
-    def get_name(self, name: str) -> str:
+    def get_name(self, name: str = None) -> str:
+        name = name if name is not None else "tmp"
         if name not in self.name_map:
             self.name_map[name] = 1
             return name
@@ -163,6 +165,10 @@ class Renamer:
             return name
         name += f".line{ctx.start.line}"
         return self.get_name(name)
+
+    def register_name(self, name: str):
+        assert name not in self.name_map
+        self.name_map[name] = 1
 
 
 renamer: Renamer = Renamer()
@@ -275,6 +281,26 @@ class BlockChain:
         block = self.concentrate()
         block.add_cmd(IRRet(typ, value))
         self.exits = []
+
+    def has_exits(self):
+        return len(self.exits) > 0
+
+    def llvm(self):
+        visited = set()
+        result = []
+
+        def dfs(block: BasicBlock):
+            if block in visited or isinstance(block, UnreachableBlock):
+                return
+            visited.add(block)
+            result.append(block)
+            for succ in block.successors:
+                dfs(succ)
+
+        start_block = self.header if self.header else unreachable_block
+        dfs(start_block)
+
+        return "\n".join(block.llvm() for block in result)
 
 
 class BuilderStack:

@@ -13,6 +13,12 @@ class VariableInfo:
         self.type = type_
         self.ir_name = ir_name
 
+    def pointer_name(self):
+        return f"{self.ir_name}.ptr"
+
+    def value_name_hint(self):
+        return self.ir_name.replace("@", "%") + ".val"
+
 
 T = TypeVar('T')
 
