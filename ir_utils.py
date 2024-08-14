@@ -20,6 +20,18 @@ class IRBinOp(IRCmdBase):
         return f"{self.dest} = {self.op} {self.typ} {self.lhs}, {self.rhs}"
 
 
+class IRIcmp(IRCmdBase):
+    def __init__(self, dest: str, op: str, typ: str, lhs: str, rhs: str):
+        self.op = op
+        self.dest = dest
+        self.lhs = lhs
+        self.rhs = rhs
+        self.typ = typ
+
+    def llvm(self):
+        return f"{self.dest} = icmp {self.op} {self.typ} {self.lhs}, {self.rhs}"
+
+
 class IRLoad(IRCmdBase):
     def __init__(self, dest: str, src: str, typ: str):
         self.dest = dest
@@ -61,7 +73,7 @@ class BBExit:
         return self.block.successors[self.idx]
 
     def llvm(self):
-        return f"{self.get_dest().name}"
+        return self.get_dest().name
 
 
 class BasicBlock:
@@ -73,6 +85,8 @@ class BasicBlock:
     def __init__(self, name: str):
         self.name = name
         self.cmds = []
+        self.predecessors = []
+        self.successors = []
 
     def llvm(self):
         ret = f"{self.name}:"
@@ -86,6 +100,9 @@ class BasicBlock:
 
     def __iter__(self):
         return iter(self.cmds)
+
+    def __hash__(self):
+        return hash(self.name)
 
 
 class UnreachableBlock(BasicBlock):
@@ -107,7 +124,7 @@ class IRJump(IRCmdBase):
         self.dest = dest
 
     def llvm(self):
-        return f"br label %{self.dest}"
+        return f"br label %{self.dest.llvm()}"
 
 
 class IRBranch(IRCmdBase):
@@ -117,7 +134,7 @@ class IRBranch(IRCmdBase):
         self.false_dest = false_dest
 
     def llvm(self):
-        return f"br i1 {self.cond}, label %{self.true_dest}, label %{self.false_dest}"
+        return f"br i1 {self.cond}, label %{self.true_dest.llvm()}, label %{self.false_dest.llvm()}"
 
 
 class IRRet(IRCmdBase):
@@ -228,6 +245,15 @@ class BlockChain:
             return False
         return True
 
+    @staticmethod
+    def merge_branches(block: BasicBlock) -> tuple[BBExit, str]:
+        assert len(block.cmds) > 0
+        last = block.cmds[-1]
+        assert isinstance(last, IRBranch)
+        block.cmds.pop()
+        block.add_cmd(IRJump(last.true_dest))
+        return last.true_dest, last.cond
+
     def concentrate(self):
         if self.header is None or len(self.exits) > 1:
             block = BasicBlock(renamer.get_name(self.name_hint))
@@ -247,12 +273,71 @@ class BlockChain:
         assert len(self.exits) == 0
         self.exits = exits
 
+    def merge_exits(self, exits: list[BBExit]):
+        """This method will merge the given exits with the existing exits of the chain,
+         convert branches to jumps if both branches of a source block are in the merged list,
+          and set `self.exits` to the merged list."""
+        source_blocks = set(exit_.block for exit_ in self.exits + exits)
+
+        block_exits = {block: [] for block in source_blocks}
+        for exit_ in self.exits + exits:
+            block_exits[exit_.block].append(exit_)
+
+        new_exits = []
+        for block, block_exits_list in block_exits.items():
+            if len(block_exits_list) == 2:
+                jump_exit, _ = BlockChain.merge_branches(block)
+
+                new_exits.append(jump_exit)
+            elif len(block_exits_list) == 1:
+                new_exits.append(block_exits_list[0])
+            else:
+                raise AssertionError("Block has more than two exits in the merged list")
+
+        self.exits = new_exits
+
+    @staticmethod
+    def phi_from_bool_flow(dest: str, true_exits: list[BBExit], false_exits: list[BBExit], ) -> "BlockChain":
+        """Create a chain with a phi node from boolean flow"""
+        chain = BlockChain(name_hint="cond.end")
+        block = chain.concentrate()
+
+        all_exits = true_exits + false_exits
+        source_blocks = set(exit_.block for exit_ in all_exits)
+
+        block_exits = {b: [] for b in source_blocks}
+        for exit_ in all_exits:
+            block_exits[exit_.block].append(exit_)
+
+        phi_values = []
+        for source_block, exits in block_exits.items():
+            if len(exits) == 2:
+                assert exits[0] in true_exits and exits[1] in false_exits
+                should_invert = exits[0].idx == 1
+                jump_exit, cond = BlockChain.merge_branches(source_block)
+                BlockChain.link_exits_to_block([jump_exit], block)
+
+                if should_invert:
+                    invert_cond = renamer.get_name(cond + ".inv")
+                    block.add_cmd(IRBinOp(invert_cond, "xor", cond, "true", "i1"))
+                    phi_values.append((jump_exit, invert_cond))
+                else:
+                    phi_values.append((jump_exit, cond))
+            elif len(exits) == 1:
+                BlockChain.link_exits_to_block(exits, block)
+                phi_values.append((exits[0], "true" if exits[0] in true_exits else "false"))
+            else:
+                raise AssertionError("Block has more than two exits in the merged list")
+
+        block.add_cmd(IRPhi(dest, "i1", phi_values))
+        return chain
+
     def add_cmd(self, cmd: IRCmdBase):
         self.concentrate().add_cmd(cmd)
 
     def phi(self, dest: str, typ: str, values: list[tuple[BBExit, str]]):
-        """Can only be called when chain is just created"""
-        assert self.header is not None
+        """DEPRECIATED Can only be called when chain is just created"""
+        assert self.header is None
         assert len(self.exits) == 0
         self.exits = [exit_ for exit_, _ in values]
         block = self.concentrate()
@@ -271,7 +356,7 @@ class BlockChain:
         block.successors = [unreachable_block, unreachable_block]
         block.add_cmd(IRBranch(cond, BBExit(block, 0), BBExit(block, 1)))
         self.exits = []
-        return [BBExit(block, 0), BBExit(block, 1)]
+        return [BBExit(block, 0)], [BBExit(block, 1)]
 
     def link_from(self, exits: list[BBExit]):
         assert self.header is not None
