@@ -253,6 +253,7 @@ class BlockChain:
         assert isinstance(last, IRBranch)
         block.cmds.pop()
         block.add_cmd(IRJump(last.true_dest))
+        block.successors.pop()
         return last.true_dest, last.cond
 
     def try_attach(self) -> bool:
@@ -261,12 +262,13 @@ class BlockChain:
             return True
         if len(self.exits) == 2 and block is self.exits[1].block:
             self.merge_branches(block)
+            self.remove_jump(block)
             self.exits = [BBExit(block, 0)]
             return True
         return False
 
     def concentrate(self):
-        if self.header is None or len(self.exits) > 2 or not self.try_attach():
+        if (self.header is None) or (len(self.exits) > 2) or not self.try_attach():
             block = BasicBlock(renamer.get_name(self.name_hint))
             self.link_exits_to_block(self.exits, block)
             block.successors = [unreachable_block]
