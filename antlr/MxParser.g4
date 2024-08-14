@@ -28,7 +28,7 @@ stmt:
     variable_Definition |
     block_Stmt          ;
 block_Stmt  : '{' stmt* '}' ;
-simple_Stmt : expr_List? ';';
+simple_Stmt : expression? ';';
 suite : block_Stmt | stmt ;
 
 
