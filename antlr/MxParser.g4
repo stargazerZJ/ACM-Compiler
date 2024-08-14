@@ -81,7 +81,7 @@ expression  :
     | l = expression    op = '|'    r = expression                      # binary
     | l = expression    op = '&&'   r = expression                      # binary
     | l = expression    op = '||'   r = expression                      # binary
-    | <assoc = right>   v = expression  op = '?'    l = expression ':'  r = expression # condition
+    | <assoc = right>   cond = expression  op = '?'    l = expression ':'  r = expression # ternary
     | <assoc = right>   l = expression  op = '='    r = expression      # binary
     | f_string                                                          # fstring
     | literal_Constant                                                  # literal

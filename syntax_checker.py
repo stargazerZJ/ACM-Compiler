@@ -274,6 +274,22 @@ class SyntaxChecker(MxParserVisitor):
                         self.raise_binary_type_error(l_type, r_type, ctx)
             return builtin_types["bool"], False
 
+    def visitTernary(self, ctx: MxParser.TernaryContext):
+        cond_type, _ = self.visit(ctx.cond)
+        if cond_type != builtin_types["bool"]:
+            raise MxSyntaxError("Condition should be bool", ctx)
+        l_type, _ = self.visit(ctx.l)
+        r_type, _ = self.visit(ctx.r)
+        if l_type != r_type:
+            if l_type == builtin_types["null"]:
+                l_type, r_type = r_type, l_type
+            if r_type != builtin_types["null"]:
+                self.raise_binary_type_error(l_type, r_type, ctx)
+            else:
+                if not l_type.can_be_null(ctx):
+                    self.raise_binary_type_error(l_type, r_type, ctx)
+        return l_type, False
+
     def visitF_string(self, ctx: MxParser.F_stringContext):
         for expression in ctx.expression():
             type_, _ = self.visit(expression)
