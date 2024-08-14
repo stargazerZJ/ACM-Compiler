@@ -236,7 +236,7 @@ class IRBuilder(MxParserVisitor):
                 self.stack.pop()
                 rhs_true, rhs_false = rhs.to_bool_flow(rhs_chain).flows()
                 true_exits = rhs_true
-                false_exits = lhs_false + rhs_false
+                false_exits = BlockChain.merge_exit_lists(lhs_false + rhs_false)
             else:
                 true_exits = []
                 false_exits = lhs_false
@@ -248,7 +248,7 @@ class IRBuilder(MxParserVisitor):
                 rhs: ExprInfoBase = self.visit(ctx.r)
                 self.stack.pop()
                 rhs_true, rhs_false = rhs.to_bool_flow(rhs_chain).flows()
-                true_exits = lhs_true + rhs_true
+                true_exits = BlockChain.merge_exit_lists(lhs_true + rhs_true)
                 false_exits = rhs_false
             else:
                 true_exits = lhs_true
@@ -272,13 +272,58 @@ class IRBuilder(MxParserVisitor):
                 operand = expr.to_operand(chain)
                 chain.ret(operand.typ.ir_name, operand.llvm())
 
+    def visitBranch_Stmt(self, ctx: MxParser.Branch_StmtContext):
+        chain = self.stack.top_chain()
+        exits_in = chain.jump()
+        if_ctx = ctx.if_Stmt()
+        else_exits, next_exits = self.visit_if_stmt(exits_in, if_ctx.expression(), if_ctx.suite())
+        chain.set_exits(next_exits)
+        for elif_ctx in ctx.else_if_Stmt():
+            if not else_exits:
+                # Skip unreachable code
+                return
+            else_exits, next_exits = self.visit_if_stmt(else_exits, elif_ctx.expression(), elif_ctx.suite())
+            chain.merge_exits(next_exits)
+        if else_exits and ctx.else_Stmt():
+            else_chain_name = renamer.get_name_from_ctx("else", ctx.else_Stmt())
+            else_chain = BlockChain(else_chain_name, else_exits, allow_attach=True)
+            self.stack.push(else_chain)
+            self.visit(ctx.else_Stmt().suite())
+            self.stack.pop()
+            chain.merge_exits(else_chain.exits)
+        else:
+            chain.merge_exits(else_exits)
+
+    def visit_if_stmt(self, exits_in: list[BBExit], expr: MxParser.ExpressionContext, suite: MxParser.SuiteContext) -> \
+            tuple[list[BBExit], list[BBExit]]:
+        """visit if or elif statements
+        :param exits_in: the exits that should be linked to this if statement
+        :param expr: the expression to be evaluated
+        :param suite: the suite to be executed if the expression is true
+        :return: the exits to the **else** suite and the exits to the **next** statements
+        """
+        chain_name = renamer.get_name_from_ctx("if", expr)
+        chain = BlockChain(chain_name, exits_in, allow_attach=True)
+        self.stack.push(chain)
+        expr_info: ExprInfoBase = self.visit(expr)
+        self.stack.pop()
+        true_exits, false_exits = expr_info.to_bool_flow(chain).flows()
+        if true_exits:
+            true_chain = BlockChain(f"{chain_name}.true", true_exits, allow_attach=True)
+            self.stack.push(true_chain)
+            self.visit(suite)
+            self.stack.pop()
+            chain.set_exits(true_chain.exits)
+        return false_exits, chain.exits
+
+
 
 if __name__ == '__main__':
     from antlr_generated.MxLexer import MxLexer
     from syntax_checker import SyntaxChecker
     import sys
 
-    test_file_path = "./testcases/demo/d2.mx"
+    test_file_path = "./testcases/demo/d3.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)

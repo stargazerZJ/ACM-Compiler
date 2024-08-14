@@ -208,7 +208,7 @@ class BlockChain:
         self.name_hint = name_hint
         if from_exits is not None:
             self.exits = from_exits
-            if allow_attach and self.remove_jump(self.exits[0].block):
+            if allow_attach and self.try_attach():
                 self.header = self.exits[0].block
 
     @staticmethod
@@ -216,8 +216,8 @@ class BlockChain:
         assert not isinstance(block, UnreachableBlock)
         BlockChain.ensure_no_phi(block)
         for exit_ in exits:
-            exit_.block.successors[exit_.idx] = block
             BlockChain.ensure_jump(exit_.block)
+            exit_.block.successors[exit_.idx] = block
             block.predecessors.append(exit_)
 
     @staticmethod
@@ -235,14 +235,15 @@ class BlockChain:
 
     @staticmethod
     def remove_jump(block: BasicBlock):
+        if len(block.successors) != 1:
+            return False
+        assert isinstance(block.successors[0], UnreachableBlock)
         if len(block.cmds) == 0:
             return True
         last = block.cmds[-1]
         if isinstance(last, IRJump):
             block.cmds.pop()
             return True
-        if isinstance(last, IRBranch) or isinstance(last, IRRet):
-            return False
         return True
 
     @staticmethod
@@ -254,8 +255,18 @@ class BlockChain:
         block.add_cmd(IRJump(last.true_dest))
         return last.true_dest, last.cond
 
+    def try_attach(self) -> bool:
+        block = self.exits[0].block
+        if len(self.exits) == 1 and self.remove_jump(block):
+            return True
+        if len(self.exits) == 2 and block is self.exits[1].block:
+            self.merge_branches(block)
+            self.exits = [BBExit(block, 0)]
+            return True
+        return False
+
     def concentrate(self):
-        if self.header is None or len(self.exits) > 1:
+        if self.header is None or len(self.exits) > 2 or not self.try_attach():
             block = BasicBlock(renamer.get_name(self.name_hint))
             self.link_exits_to_block(self.exits, block)
             block.successors = [unreachable_block]
@@ -264,9 +275,6 @@ class BlockChain:
                 self.header = block
         else:
             block = self.exits[0].block
-            if not self.remove_jump(block):
-                block = BasicBlock(renamer.get_name(self.name_hint))
-                self.link_exits_to_block(self.exits, block)
         return block
 
     def set_exits(self, exits: list[BBExit]):
@@ -277,10 +285,14 @@ class BlockChain:
         """This method will merge the given exits with the existing exits of the chain,
          convert branches to jumps if both branches of a source block are in the merged list,
           and set `self.exits` to the merged list."""
-        source_blocks = set(exit_.block for exit_ in self.exits + exits)
+        self.exits = BlockChain.merge_exit_lists(self.exits + exits)
+
+    @staticmethod
+    def merge_exit_lists(exits: list[BBExit]) -> list[BBExit]:
+        source_blocks = set(exit_.block for exit_ in exits)
 
         block_exits = {block: [] for block in source_blocks}
-        for exit_ in self.exits + exits:
+        for exit_ in exits:
             block_exits[exit_.block].append(exit_)
 
         new_exits = []
@@ -294,7 +306,7 @@ class BlockChain:
             else:
                 raise AssertionError("Block has more than two exits in the merged list")
 
-        self.exits = new_exits
+        return new_exits
 
     @staticmethod
     def phi_from_bool_flow(dest: str, true_exits: list[BBExit], false_exits: list[BBExit], ) -> "BlockChain":
@@ -347,6 +359,7 @@ class BlockChain:
         ret = self.exits
         for exit_ in self.exits:
             BlockChain.ensure_jump(exit_.block)
+        ret = BlockChain.merge_exit_lists(ret)
         self.exits = []
         return ret
 
