@@ -72,10 +72,12 @@ class GlobalScope(ScopeBase):
 class LocalScope:
     variables: dict[str, tuple[TypeBase, str]]
     is_loop_scope: bool
+    is_class_scope: bool
 
-    def __init__(self, is_loop_scope: bool):
+    def __init__(self, is_loop_scope: bool, is_class_scope: bool = False):
         self.variables = {}
         self.is_loop_scope = is_loop_scope
+        self.is_class_scope = is_class_scope
 
 
 class Scope(ScopeBase):
@@ -108,8 +110,8 @@ class Scope(ScopeBase):
             raise MxSyntaxError(f"Variable '{name}' already defined as a function", ctx)
         self.scope_stack[-1].variables[name] = typ, ir_name
 
-    def push_scope(self, is_loop_scope: bool = False):
-        self.scope_stack.append(LocalScope(is_loop_scope))
+    def push_scope(self, is_loop_scope: bool = False, is_class_scope: bool = False):
+        self.scope_stack.append(LocalScope(is_loop_scope, is_class_scope))
 
     def pop_scope(self):
         self.scope_stack.pop()
@@ -122,7 +124,7 @@ class Scope(ScopeBase):
 
     def enter_class_scope(self, class_name: str):
         self.this_type = self.global_scope.get_type(class_name)
-        self.scope_stack.append(LocalScope(False))
+        self.scope_stack.append(LocalScope(False, True))
         for name, typ in self.this_type.members.items():
             self.scope_stack[-1].variables[name] = typ, "TODO:_CLASS_MEMBER_IR_NAME"
 
@@ -143,3 +145,8 @@ class Scope(ScopeBase):
 
     def is_global(self):
         return len(self.scope_stack) == 1
+
+    def is_in_class(self):
+        if self.is_global():
+            return False
+        return self.scope_stack[1].is_class_scope

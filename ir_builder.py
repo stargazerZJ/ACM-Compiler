@@ -2,19 +2,12 @@ import antlr4
 
 from antlr_generated.MxParser import MxParser
 from antlr_generated.MxParserVisitor import MxParserVisitor
-from ir_utils import renamer, IRLoad, IRStore, IRAlloca, IRBinOp, IRIcmp, BBExit, BlockChain, BuilderStack
+from ir_utils import IRLoad, IRStore, IRAlloca, IRBinOp, IRIcmp, BBExit, BlockChain, BuilderStack, IRModule, \
+    IRFunction
+from ir_renamer import renamer
 from syntax_error import MxSyntaxError, ThrowingErrorListener
-from syntax_recorder import SyntaxRecorder, VariableInfo
-from type import TypeBase, builtin_types, builtin_functions
-
-
-class InternalPtrType(TypeBase):
-    """Internal type for pointers"""
-    pointed_to: TypeBase
-
-    def __init__(self, pointed_to: TypeBase = None):
-        super().__init__("ptr", "ptr")
-        self.pointed_to = pointed_to
+from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo
+from type import TypeBase, builtin_types, InternalPtrType
 
 
 class ExprInfoBase:
@@ -128,21 +121,38 @@ class IRBuilder(MxParserVisitor):
     """Demo code (for now)"""
     recorder: SyntaxRecorder
     stack: BuilderStack
+    ir_module: IRModule
 
     def __init__(self, recorder: SyntaxRecorder):
         super().__init__()
         self.recorder = recorder
         self.stack = BuilderStack()
 
+    def visitFile_Input(self, ctx: MxParser.File_InputContext):
+        self.ir_module = IRModule()
+        self.visitChildren(ctx)
+        return self.ir_module
+
     def visitFunction_Definition(self, ctx: MxParser.Function_DefinitionContext):
-        chain = BlockChain("main")
-        # TODO: Add allocation for local variables
+        function_info = self.recorder.get_typed_info(ctx, FunctionInfo)
+        chain = BlockChain(function_info.ir_name[1:])
+        for local_var in function_info.local_vars:
+            chain.add_cmd(IRAlloca(local_var.pointer_name(), local_var.type.ir_name))
+        for param_name, param_type in zip(function_info.param_ir_names, function_info.param_types):
+            chain.add_cmd(IRStore(param_name + ".ptr", param_name + ".param", param_type.ir_name))
         self.stack.push(chain)
         self.visitChildren(ctx)
         self.stack.pop()
         if chain.has_exits():
-            chain.ret("i32", "0")
-        print(chain.llvm())
+            if function_info.ir_name == "@main":
+                chain.ret("i32", "0")
+            else:
+                if function_info.ret_type == builtin_types["void"]:
+                    chain.ret("void")
+                else:
+                    # mark the exits of the function as unreachable
+                    chain.jump()
+        self.ir_module.functions.append(IRFunction(function_info, chain))
 
     def visitSimple_Stmt(self, ctx: MxParser.Simple_StmtContext):
         if ctx.expression():
@@ -378,7 +388,7 @@ if __name__ == '__main__':
     from syntax_checker import SyntaxChecker
     import sys
 
-    test_file_path = "./testcases/demo/d5.mx"
+    test_file_path = "./testcases/demo/d6.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)
@@ -403,5 +413,6 @@ if __name__ == '__main__':
         exit(1)
 
     ir_builder = IRBuilder(recorder)
-    ir_builder.visit(tree)
+    ir:IRModule = ir_builder.visit(tree)
     print("IR building passed", file=sys.stderr)
+    print(ir.llvm())

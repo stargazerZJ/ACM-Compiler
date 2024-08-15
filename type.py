@@ -47,8 +47,9 @@ class FunctionType(TypeBase):
     ret_type: TypeBase
     param_types: list[TypeBase]
 
-    def __init__(self, name: str, ret_type: TypeBase, param_types: list[TypeBase]):
-        super().__init__(name)
+    def __init__(self, name: str, ret_type: TypeBase, param_types: list[TypeBase], ir_name: str = None):
+        ir_name = ir_name or "@" + name
+        super().__init__(name, ir_name)
         self.ret_type = ret_type
         self.param_types = param_types
 
@@ -76,7 +77,7 @@ class ArrayType(TypeBase):
         super().__init__(f"{element_type.name}" + "[]" * dimension)
         self.element_type = element_type
         self.dimension = dimension
-        self.add_member("size", FunctionType("size", BuiltinIntType(), []))
+        self.add_member("size", FunctionType("size", BuiltinIntType(), [], "invalid"))
 
     def subscript(self, ctx: ParserRuleContext = None) -> TypeBase:
         if self.dimension == 1:
@@ -112,10 +113,11 @@ class BuiltinVoidType(TypeBase):
 class BuiltinStringType(TypeBase):
     def __init__(self):
         super().__init__("string")
-        self.add_member("length", FunctionType("length", BuiltinIntType(), []))
-        self.add_member("substring", FunctionType("substring", self, [BuiltinIntType(), BuiltinIntType()]))
-        self.add_member("parseInt", FunctionType("parseInt", BuiltinIntType(), []))
-        self.add_member("ord", FunctionType("ord", BuiltinIntType(), [BuiltinIntType()]))
+        self.add_member("length", FunctionType("length", BuiltinIntType(), [], "@string.length"))
+        self.add_member("substring",
+                        FunctionType("substring", self, [BuiltinIntType(), BuiltinIntType()], "@string.substring"))
+        self.add_member("parseInt", FunctionType("parseInt", BuiltinIntType(), [], "@string.parseInt"))
+        self.add_member("ord", FunctionType("ord", BuiltinIntType(), [BuiltinIntType()], "@string.ord"))
 
     def can_be_null(self, ctx: ParserRuleContext = None) -> bool:
         return False

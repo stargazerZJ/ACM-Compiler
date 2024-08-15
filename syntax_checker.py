@@ -4,8 +4,8 @@ from antlr_generated.MxParser import MxParser
 from type import TypeBase, FunctionType, ArrayType, ClassType, builtin_functions, builtin_types
 from scope import Scope, GlobalScope, ScopeBase
 from syntax_error import MxSyntaxError, ThrowingErrorListener
-from ir_utils import renamer, reset_renamer
-from syntax_recorder import SyntaxRecorder, VariableInfo
+from ir_renamer import renamer, reset_renamer
+from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo
 
 
 class SyntaxChecker(MxParserVisitor):
@@ -36,6 +36,7 @@ class SyntaxChecker(MxParserVisitor):
         # Register functions
         for func_ctx in ctx.function_Definition():
             func = self.register_function(global_scope, func_ctx)
+            renamer.register_name(func.ir_name)
             global_scope.add_function(func, func_ctx)
 
         # Check main function
@@ -51,13 +52,14 @@ class SyntaxChecker(MxParserVisitor):
 
     def register_function(self, scope: ScopeBase, ctx: MxParser.Function_DefinitionContext) -> FunctionType:
         func_name = ctx.function_Argument().Identifier().getText()
+        ir_name = "@" + func_name
         ret_type = scope.get_type(*self.visitTypename(ctx.function_Argument().typename()), ctx)
         if ctx.function_Param_List():
             param_types = [scope.get_type(*self.visitTypename(arg.typename()), ctx)
                            for arg in ctx.function_Param_List().function_Argument()]
         else:
             param_types = []
-        return FunctionType(func_name, ret_type, param_types)
+        return FunctionType(func_name, ret_type, param_types, ir_name)
 
     def register_class_members(self, ctx: MxParser.Class_DefinitionContext):
         class_name = ctx.Identifier().getText()
@@ -66,8 +68,10 @@ class SyntaxChecker(MxParserVisitor):
         # Register member functions
         for func_ctx in ctx.function_Definition():
             func = self.register_function(self.scope, func_ctx)
+            func.ir_name = "@" + class_name + "." + func.name
             if func.name == class_name:
                 raise MxSyntaxError(f"Constructor '{class_name}' should be defined separately", func_ctx)
+            renamer.register_name(func.ir_name)
             class_type.add_member(func.name, func)
 
         # Register member variables
@@ -84,6 +88,8 @@ class SyntaxChecker(MxParserVisitor):
             ctor_name = ctor_ctx.Identifier().getText()
             if ctor_name != class_name:
                 raise MxSyntaxError(f"Constructor {ctor_name} should be the same as class name: {class_name}", ctor_ctx)
+            ctor_ir_name = "@" + class_name + "." + class_name
+            renamer.register_name(ctor_ir_name)
 
     def visitVariable_Definition(self, ctx: MxParser.Variable_DefinitionContext):
         typename, dimension = self.visitTypename(ctx.typename())
@@ -105,6 +111,8 @@ class SyntaxChecker(MxParserVisitor):
                 self.visitArray_Literal(init_stmt.array_Literal(), typename, dimension)
             ir_prefix = "@" if self.scope.is_global() else "%"
             ir_name = renamer.get_name_from_ctx(ir_prefix + init_stmt.Identifier().getText(), init_stmt)
+            if not self.scope.is_global():
+                self.recorder.current_function.local_vars.append(VariableInfo(type_, ir_name))
             self.scope.add_variable(init_stmt.Identifier().getText(), type_, ctx, ir_name)
 
     def visitArray_Literal(self, ctx: MxParser.Array_LiteralContext, typename: str = "", dimension: int = 0):
@@ -326,14 +334,25 @@ class SyntaxChecker(MxParserVisitor):
 
     def visitFunction_Definition(self, ctx: MxParser.Function_DefinitionContext):
         ret_type = self.scope.get_type(*self.visitTypename(ctx.function_Argument().typename()), ctx)
+        function_type, function_ir_name = self.scope.get_variable(ctx.function_Argument().Identifier().getText(), ctx)
+        function_info = FunctionInfo(function_ir_name, ret_type.internal_type(),
+                                     [], [], self.scope.is_in_class())
+        if self.scope.is_in_class():
+            function_info.param_types = [self.scope.get_this_type().internal_type()]
+            function_info.param_ir_names = ["%this"]
         self.scope.set_return_type(ret_type)
         self.scope.push_scope()
         if ctx.function_Param_List():
             for argument in ctx.function_Param_List().function_Argument():
                 arg_type = self.scope.get_type(*self.visitTypename(argument.typename()), argument)
                 ir_name = renamer.get_name_from_ctx("%" + argument.Identifier().getText(), argument)
+                function_info.param_types.append(arg_type.internal_type())
+                function_info.param_ir_names.append(ir_name)
+                function_info.local_vars.append(VariableInfo(arg_type, ir_name))
                 self.scope.add_variable(argument.Identifier().getText(), arg_type, argument, ir_name)
+        self.recorder.enter_function(function_info, ctx)
         self.visitBlock_Stmt(ctx.block_Stmt())
+        self.recorder.exit_function()
         self.scope.pop_scope()
 
     def visitClass_Ctor_Function(self, ctx: MxParser.Class_Ctor_FunctionContext):

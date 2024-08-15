@@ -1,6 +1,8 @@
 # Utility types and functions for LLVM 15 IR generation
 
-from antlr4 import ParserRuleContext
+from ir_renamer import renamer
+from syntax_recorder import FunctionInfo
+from type import FunctionType
 
 
 class IRCmdBase:
@@ -160,42 +162,6 @@ class IRPhi(IRCmdBase):
         return ret
 
 
-class Renamer:
-    """Rename variables, functions, etc. in IR"""
-    name_map: dict[str, int]
-
-    def __init__(self):
-        self.name_map = {}
-
-    def get_name(self, name: str = None) -> str:
-        name = name if name is not None else "tmp"
-        if name not in self.name_map:
-            self.name_map[name] = 1
-            return name
-        self.name_map[name] += 1
-        name = f"{name}.{self.name_map[name]}"
-        return self.get_name(name)
-
-    def get_name_from_ctx(self, name: str, ctx: ParserRuleContext) -> str:
-        if name not in self.name_map:
-            self.name_map[name] = 1
-            return name
-        name += f".line{ctx.start.line}"
-        return self.get_name(name)
-
-    def register_name(self, name: str):
-        assert name not in self.name_map
-        self.name_map[name] = 1
-
-
-renamer: Renamer = Renamer()
-
-
-def reset_renamer():
-    global renamer
-    renamer = Renamer()
-
-
 class BlockChain:
     """Chain of basic blocks, helper class for IRGenerator"""
     header: BasicBlock | None
@@ -216,7 +182,6 @@ class BlockChain:
 
     def rename(self, name: str):
         self.name_hint = name
-
 
     @staticmethod
     def link_exits_to_block(exits: list[BBExit], block: BasicBlock):
@@ -391,6 +356,7 @@ class BlockChain:
     def ret(self, typ: str, value: str = ""):
         block = self.concentrate()
         block.add_cmd(IRRet(typ, value))
+        block.successors = []
         self.exits = []
 
     def has_exits(self):
@@ -401,7 +367,7 @@ class BlockChain:
         result = []
 
         def dfs(block: BasicBlock):
-            if block in visited or isinstance(block, UnreachableBlock):
+            if block in visited:
                 return
             visited.add(block)
             result.append(block)
@@ -466,3 +432,35 @@ class BuilderStack:
 
     def break_exits(self):
         return self.top().breaks
+
+
+class IRFunction:
+    info: FunctionInfo
+    chain: BlockChain = None
+
+    def __init__(self, info: FunctionInfo, chain: BlockChain = None):
+        self.info = info
+        self.chain = chain
+
+    @staticmethod
+    def declare(func: FunctionType):
+        # TODO
+        # return IRFunction(FunctionInfo(func.ir_name, func.ret_type, func.param_types, func.param_ir_names))
+        pass
+
+    def llvm(self):
+        param_str = ", ".join(f"{ty.ir_name} {name}.param" for ty, name in zip(self.info.param_types, self.info.param_ir_names))
+        if self.chain is None:
+            return f"declare {self.info.ret_type.ir_name} {self.info.ir_name}({param_str})"
+        else:
+            body = self.chain.llvm()
+            return f"define {self.info.ret_type.ir_name} {self.info.ir_name}({param_str}) {{\n{body}}}\n"
+
+class IRModule:
+    functions: list[IRFunction]
+
+    def __init__(self):
+        self.functions = []
+
+    def llvm(self):
+        return "\n".join(func.llvm() for func in self.functions)
