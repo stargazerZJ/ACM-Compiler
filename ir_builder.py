@@ -316,6 +316,61 @@ class IRBuilder(MxParserVisitor):
             chain.set_exits(true_chain.exits)
         return false_exits, chain.exits
 
+    def visitFor_Stmt(self, ctx: MxParser.For_StmtContext):
+        if ctx.initializer:
+            self.visit(ctx.initializer)
+        name_hint = renamer.get_name_from_ctx("for", ctx)
+        self.visit_for_loop(name_hint, ctx.condition, ctx.suite(), ctx.step)
+
+    def visitWhile_Stmt(self, ctx: MxParser.While_StmtContext):
+        name_hint = renamer.get_name_from_ctx("while", ctx)
+        self.visit_for_loop(name_hint, ctx.expression(), ctx.suite())
+
+    def visit_for_loop(self, name_hint: str,
+                       condition: MxParser.ExpressionContext,
+                       suite: MxParser.SuiteContext,
+                       step: MxParser.ExpressionContext = None):
+        if condition:
+            condition_info: ExprInfoBase = self.visit(condition)
+            true_exits, next_exits = condition_info.to_bool_flow(self.stack.top_chain()).flows()
+        else:
+            true_exits = self.stack.top_chain().jump()
+            next_exits = []
+        if true_exits:
+            loop_chain = BlockChain(name_hint, true_exits, allow_attach=False)
+            if suite:
+                self.stack.push(loop_chain, True)
+                self.visit(suite)
+                breaks, continues = self.stack.pop()
+                next_exits += breaks
+                loop_chain.merge_exits(continues)
+            if loop_chain.has_exits():
+                self.stack.push(loop_chain)
+                if step:
+                    loop_chain.rename(f"{name_hint}.step")
+                    self.visit(step)
+                if condition:
+                    loop_chain.rename(f"{name_hint}.condition")
+                    condition_info = self.visit(condition)
+                    true_exits2, false_exits2 = condition_info.to_bool_flow(loop_chain).flows()
+                    next_exits += false_exits2
+                else:
+                    # note that the jump destinations are unreachable by default
+                    true_exits2 = loop_chain.jump()
+                self.stack.pop()
+                # if loop_chain.header is not None:
+                #     # otherwise, the loop body is empty,
+                #     # and we should do nothing to leave the exits unreachable
+                loop_chain.add_entrances(true_exits2)
+        next_exits = BlockChain.merge_exit_lists(next_exits)
+        self.stack.top_chain().set_exits(next_exits)
+
+    def visitBlock_Stmt(self, ctx: MxParser.Block_StmtContext):
+        chain = self.stack.top_chain()
+        for stmt in ctx.stmt():
+            self.visit(stmt)
+            if not chain.has_exits():
+                return
 
 
 if __name__ == '__main__':
@@ -323,7 +378,7 @@ if __name__ == '__main__':
     from syntax_checker import SyntaxChecker
     import sys
 
-    test_file_path = "./testcases/demo/d3.mx"
+    test_file_path = "./testcases/demo/d5.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)

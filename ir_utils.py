@@ -275,7 +275,7 @@ class BlockChain:
         return False
 
     def concentrate(self):
-        if (self.header is None) or (len(self.exits) > 2) or not self.try_attach():
+        if self.header is None or len(self.exits) > 2 or not self.try_attach():
             block = BasicBlock(renamer.get_name(self.name_hint))
             self.link_exits_to_block(self.exits, block)
             block.successors = [unreachable_block]
@@ -352,6 +352,10 @@ class BlockChain:
 
         block.add_cmd(IRPhi(dest, "i1", phi_values))
         return chain
+
+    def add_entrances(self, exits: list[BBExit]):
+        """Add entrances to the chain from the given exits."""
+        BlockChain.link_exits_to_block(exits, self.header)
 
     def add_cmd(self, cmd: IRCmdBase):
         self.concentrate().add_cmd(cmd)
@@ -433,7 +437,9 @@ class BuilderStack:
         self.layers.append(BuilderStack.Layer(chain, is_loop))
 
     def pop(self):
-        return self.layers.pop()
+        layer = self.layers.pop()
+        if layer.is_loop:
+            return layer.breaks, layer.continues
 
     def top(self) -> Layer:
         return self.layers[-1]
@@ -454,3 +460,9 @@ class BuilderStack:
                 layer.continues.extend(continues)
                 return
         raise AssertionError("Continue outside loop")
+
+    def continue_exits(self):
+        return self.top().continues
+
+    def break_exits(self):
+        return self.top().breaks
