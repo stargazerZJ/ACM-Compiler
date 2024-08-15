@@ -20,6 +20,24 @@ class VariableInfo:
         return self.ir_name.replace("@", "%") + ".val"
 
 
+class FunctionInfo:
+    ir_name: str
+    ret_type: TypeBase
+    param_types: list[TypeBase]
+    param_ir_names: list[str]
+    local_vars: list[VariableInfo]
+    is_member: bool
+
+    def __init__(self, ir_name: str, ret_type: TypeBase, param_types: list[TypeBase], param_ir_names: list[str],
+                 is_member: bool):
+        self.ir_name = ir_name
+        self.ret_type = ret_type
+        self.param_types = param_types
+        self.param_ir_names = param_ir_names
+        self.local_vars = []
+        self.is_member = is_member
+
+
 T = TypeVar('T')
 
 

@@ -39,6 +39,9 @@ class TypeBase:
     def can_be_null(self, ctx: ParserRuleContext = None) -> bool:
         return True
 
+    def internal_type(self) -> "TypeBase":
+        return self
+
 
 class FunctionType(TypeBase):
     ret_type: TypeBase
@@ -80,6 +83,10 @@ class ArrayType(TypeBase):
             return self.element_type
         return ArrayType(self.element_type, self.dimension - 1)
 
+    @property
+    def internal_type(self) -> TypeBase:
+        return InternalPtrType(self)
+
 
 class BuiltinIntType(TypeBase):
     def __init__(self):
@@ -113,15 +120,27 @@ class BuiltinStringType(TypeBase):
     def can_be_null(self, ctx: ParserRuleContext = None) -> bool:
         return False
 
+    @property
+    def internal_type(self) -> TypeBase:
+        return InternalPtrType(self)
+
 
 class BuiltinNullType(TypeBase):
     def __init__(self):
         super().__init__("null")
 
+    @property
+    def internal_type(self) -> TypeBase:
+        return InternalPtrType(self)
+
 
 class ClassType(TypeBase):
     def __init__(self, name: str, ir_name: str = None):
         super().__init__(name, ir_name)
+
+    @property
+    def internal_type(self) -> TypeBase:
+        return InternalPtrType(self)
 
 
 builtin_types = {
@@ -140,3 +159,12 @@ builtin_functions = {
     "getInt": FunctionType("getInt", BuiltinIntType(), []),
     "toString": FunctionType("toString", BuiltinStringType(), [BuiltinIntType()]),
 }
+
+
+class InternalPtrType(TypeBase):
+    """Internal type for pointers"""
+    pointed_to: TypeBase
+
+    def __init__(self, pointed_to: TypeBase = None):
+        super().__init__("ptr", "ptr")
+        self.pointed_to = pointed_to
