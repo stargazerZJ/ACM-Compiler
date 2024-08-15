@@ -208,8 +208,15 @@ class BlockChain:
         self.name_hint = name_hint
         if from_exits is not None:
             self.exits = from_exits
-            if allow_attach and self.try_attach():
+        if allow_attach and self.exits:
+            if self.try_attach():
                 self.header = self.exits[0].block
+        else:
+            self.concentrate()
+
+    def rename(self, name: str):
+        self.name_hint = name
+
 
     @staticmethod
     def link_exits_to_block(exits: list[BBExit], block: BasicBlock):
