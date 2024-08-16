@@ -2,7 +2,7 @@
 
 from ir_renamer import renamer
 from syntax_recorder import FunctionInfo, ClassInfo, builtin_function_infos, internal_array_info, VariableInfo
-from type import FunctionType
+from type import FunctionType, TypeBase
 
 
 class IRCmdBase:
@@ -176,10 +176,28 @@ class IRCall(IRCmdBase):
         return f"{self.dest} = call {self.typ} {self.func.ir_name}({
         ', '.join(f'{ty.ir_name} {name}' for ty, name in zip(self.func.param_types, self.args))})"
 
+
 class IRMalloc(IRCall):
     """Only structs use malloc. Arrays use __newPtrArray, __newIntArray etc."""
+
     def __init__(self, dest: str, cls: ClassInfo):
         super().__init__(dest, builtin_function_infos["@malloc"], [str(cls.size)])
+
+
+class IRGetElementPtr(IRCmdBase):
+    def __init__(self, dest: str, typ: ClassInfo | TypeBase, ptr: str, arr_index: str = None, member: str = None):
+        self.dest = dest
+        self.typ = typ
+        self.ptr = ptr
+        self.arr_index = arr_index or "0"
+        self.member = member
+
+    def llvm(self):
+        if isinstance(self.typ, ClassInfo):
+            member_index = self.typ.get_member_idx(self.member)
+            return f"{self.dest} = getelementptr inbounds {self.typ.ir_name}, ptr {self.ptr}, i32 {self.arr_index}, i32 {member_index}"
+        elif isinstance(self.typ, TypeBase):
+            return f"{self.dest} = getelementptr inbounds {self.typ.ir_name}, ptr {self.ptr}, i32 {self.arr_index}"
 
 
 class BlockChain:
@@ -503,6 +521,6 @@ class IRModule:
         self.classes = [IRClass(internal_array_info)]
 
     def llvm(self):
-        functions =  "\n".join(func.llvm() for func in self.functions)
+        functions = "\n".join(func.llvm() for func in self.functions)
         classes = "\n".join(cls.llvm() for cls in self.classes)
         return f"{functions}\n{classes}"

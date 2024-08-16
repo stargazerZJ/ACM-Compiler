@@ -3,7 +3,7 @@ import antlr4
 from antlr_generated.MxParser import MxParser
 from antlr_generated.MxParserVisitor import MxParserVisitor
 from ir_utils import IRLoad, IRStore, IRAlloca, IRBinOp, IRIcmp, BBExit, BlockChain, BuilderStack, IRModule, \
-    IRFunction, IRCall, IRClass, IRMalloc
+    IRFunction, IRCall, IRClass, IRMalloc, IRGetElementPtr
 from ir_renamer import renamer
 from syntax_error import MxSyntaxError, ThrowingErrorListener
 from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo
@@ -115,6 +115,7 @@ class ExprBoolFlow(ExprInfoBase):
         """Continue the flow regardless of the condition"""
         chain.set_exits(self.true_exits)
         chain.merge_exits(self.false_exits)
+
 
 class ExprFunc(ExprInfoBase):
     function_info: FunctionInfo
@@ -294,7 +295,7 @@ class IRBuilder(MxParserVisitor):
         args = []
         if ctx.expr_List():
             for expr in ctx.expr_List().expression():
-                arg:ExprInfoBase = self.visit(expr)
+                arg: ExprInfoBase = self.visit(expr)
                 arg_value = arg.to_operand(chain)
                 args.append(arg_value.llvm())
         if info.ret_type == builtin_types["void"]:
@@ -323,12 +324,29 @@ class IRBuilder(MxParserVisitor):
                 # new A()
                 class_name = ctx.Identifier().getText()
                 class_info = self.recorder.get_class_info(class_name)
-                class_internal_type = self.recorder.get_typed_info(ctx, VariableInfo).type # internal pointer type
+                class_internal_type = self.recorder.get_typed_info(ctx, VariableInfo).type  # internal pointer type
                 new_name = renamer.get_name_from_ctx(f"%.new.{class_name}", ctx)
                 chain.add_cmd(IRMalloc(new_name, class_info))
                 if class_info.ctor:
                     chain.add_cmd(IRCall("", class_info.ctor, [new_name]))
                 return ExprValue(class_internal_type, new_name)
+
+    def visitMember(self, ctx: MxParser.MemberContext):
+        chain = self.stack.top_chain()
+        obj: ExprInfoBase = self.visit(ctx.l)
+        assert isinstance(obj.typ, InternalPtrType)
+        obj_pointer_value = obj.to_operand(chain)
+        class_info = self.recorder.get_class_info(obj.typ.pointed_to.name)
+        member_info = class_info.get_member(ctx.Identifier().getText())
+        if isinstance(member_info, VariableInfo):
+            new_name = renamer.get_name_from_ctx(f"%.member.{member_info.ir_name}", ctx)
+            new_ptr_name = new_name + ".ptr"
+            new_value_name = new_name + ".val"
+            chain.add_cmd(
+                IRGetElementPtr(new_ptr_name, class_info, obj_pointer_value.llvm(), member=ctx.Identifier().getText()))
+            return ExprPtr(member_info.type, new_ptr_name, new_value_name)
+        else:
+            raise NotImplementedError("Function call on object is not yet supported")
 
     def visitFlow_Stmt(self, ctx: MxParser.Flow_StmtContext):
         chain = self.stack.top_chain()
@@ -478,6 +496,6 @@ if __name__ == '__main__':
         exit(1)
 
     ir_builder = IRBuilder(recorder)
-    ir:IRModule = ir_builder.visit(tree)
+    ir: IRModule = ir_builder.visit(tree)
     print("IR building passed", file=sys.stderr)
     print(ir.llvm())

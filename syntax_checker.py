@@ -119,7 +119,7 @@ class SyntaxChecker(MxParserVisitor):
             ir_prefix = "@" if self.scope.is_global() else "%"
             ir_name = renamer.get_name_from_ctx(ir_prefix + init_stmt.Identifier().getText(), init_stmt)
             if not self.scope.is_global():
-                self.recorder.current_function.local_vars.append(VariableInfo(type_, ir_name))
+                self.recorder.current_function.local_vars.append(VariableInfo(type_.internal_type(), ir_name))
             self.scope.add_variable(init_stmt.Identifier().getText(), type_, ctx, ir_name)
 
     def visitArray_Literal(self, ctx: MxParser.Array_LiteralContext, typename: str = "", dimension: int = 0):
@@ -326,7 +326,7 @@ class SyntaxChecker(MxParserVisitor):
     def visitAtom(self, ctx: MxParser.AtomContext):
         # Note: assigning to a function is undefined behavior
         type_, name = self.scope.get_variable(ctx.Identifier().getText(), ctx)
-        self.recorder.record(ctx, VariableInfo(type_, name))
+        self.recorder.record(ctx, VariableInfo(type_.internal_type(), name))
         return type_, True
 
     def visitThis(self, ctx: MxParser.ThisContext):
