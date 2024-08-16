@@ -2,7 +2,7 @@
 
 from ir_renamer import renamer
 from syntax_recorder import FunctionInfo, ClassInfo, builtin_function_infos, internal_array_info, VariableInfo
-from type import FunctionType, TypeBase
+from type import FunctionType, TypeBase, InternalPtrType
 
 
 class IRCmdBase:
@@ -424,6 +424,7 @@ class BlockChain:
 
 class BuilderStack:
     layers: list["Layer"]
+    this_type: InternalPtrType | None
 
     class Layer:
         chain: BlockChain
@@ -440,6 +441,7 @@ class BuilderStack:
 
     def __init__(self):
         self.layers = []
+        self.this_type = None
 
     def push(self, chain: BlockChain, is_loop: bool = False):
         self.layers.append(BuilderStack.Layer(chain, is_loop))
@@ -474,6 +476,15 @@ class BuilderStack:
 
     def break_exits(self):
         return self.top().breaks
+
+    def enter_class_scope(self, class_type: InternalPtrType):
+        self.this_type = class_type
+
+    def exit_class_scope(self):
+        self.this_type = None
+
+    def get_this_type(self):
+        return self.this_type
 
 
 class IRFunction:

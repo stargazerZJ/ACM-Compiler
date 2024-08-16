@@ -19,6 +19,9 @@ class VariableInfo:
     def value_name_hint(self):
         return self.ir_name.replace("@", "%") + ".val"
 
+    def is_this_member(self):
+        return self.ir_name.startswith("%.this.")
+
 
 class FunctionInfo:
     name: str

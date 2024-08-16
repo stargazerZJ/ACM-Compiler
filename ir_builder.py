@@ -147,7 +147,11 @@ class IRBuilder(MxParserVisitor):
         class_name = ctx.Identifier().getText()
         class_info = self.recorder.get_class_info(class_name)
         self.ir_module.classes.append(IRClass(class_info))
+        class_internal_type = self.recorder.get_typed_info(ctx, VariableInfo).type  # internal pointer type
+        assert isinstance(class_internal_type, InternalPtrType)
+        self.stack.enter_class_scope(class_internal_type)
         self.visitChildren(ctx)
+        self.stack.exit_class_scope()
 
     def visitFunction_Definition(self, ctx: MxParser.Function_DefinitionContext):
         return self.visit_function_definition(ctx)
@@ -184,10 +188,24 @@ class IRBuilder(MxParserVisitor):
 
     def visitAtom(self, ctx: MxParser.AtomContext):
         variable_info = self.recorder.get_typed_info(ctx, VariableInfo)
+        is_this_member = variable_info.is_this_member()
+        this_value = ExprValue(self.stack.get_this_type(), "%this.param") if is_this_member else None
         if isinstance(variable_info.type, FunctionType):
-            function_info = self.recorder.get_function_info(variable_info.ir_name)
-            return ExprFunc(function_info)
-        return ExprPtr(variable_info.type, variable_info.pointer_name(), variable_info.value_name_hint())
+            function_info = self.recorder.get_function_info(variable_info.type.ir_name)
+            return ExprFunc(function_info, this_value)
+        if not is_this_member:
+            return ExprPtr(variable_info.type, variable_info.pointer_name(), variable_info.value_name_hint())
+        else:
+            chain = self.stack.top_chain()
+            class_info = self.recorder.get_class_info(self.stack.get_this_type().pointed_to.name)
+            new_name = renamer.get_name_from_ctx(variable_info.ir_name, ctx)
+            new_ptr_name = new_name + ".ptr"
+            new_value_name = new_name + ".val"
+            chain.add_cmd(IRGetElementPtr(new_ptr_name, class_info, "%this.param", member=ctx.Identifier().getText()))
+            return ExprPtr(variable_info.type, new_ptr_name, new_value_name)
+
+    def visitThis(self, ctx: MxParser.ThisContext):
+        return ExprValue(self.stack.get_this_type(), "%this.param")
 
     def visitLiteral_Constant(self, ctx: MxParser.Literal_ConstantContext):
         if ctx.Number():

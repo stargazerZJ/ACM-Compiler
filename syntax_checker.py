@@ -97,6 +97,7 @@ class SyntaxChecker(MxParserVisitor):
             ctor_ir_name = "@" + class_name + "." + class_name
             renamer.register_name(ctor_ir_name)
         self.recorder.class_info[class_name] = class_info
+        self.recorder.record(ctx, VariableInfo(class_type.internal_type(), ""))
 
     def visitVariable_Definition(self, ctx: MxParser.Variable_DefinitionContext):
         typename, dimension = self.visitTypename(ctx.typename())
