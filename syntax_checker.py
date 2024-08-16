@@ -83,7 +83,7 @@ class SyntaxChecker(MxParserVisitor):
             for init_stmt in var_ctx.init_Stmt():
                 var_name = init_stmt.Identifier().getText()
                 class_type.add_member(var_name, var_type)
-                value_info = VariableInfo(var_type, class_name + "." + var_name)
+                value_info = VariableInfo(var_type, var_name)
                 class_info.add_member(var_name, value_info)
 
         # Check constructor if exists

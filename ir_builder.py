@@ -119,10 +119,12 @@ class ExprBoolFlow(ExprInfoBase):
 
 class ExprFunc(ExprInfoBase):
     function_info: FunctionInfo
+    this: ExprInfoBase | None
 
-    def __init__(self, function_info: FunctionInfo):
+    def __init__(self, function_info: FunctionInfo, this: ExprInfoBase = None):
         super().__init__(function_info.ret_type, function_info.ir_name)
         self.function_info = function_info
+        self.this = this
 
 
 class IRBuilder(MxParserVisitor):
@@ -293,6 +295,10 @@ class IRBuilder(MxParserVisitor):
         func: ExprFunc = self.visit(ctx.l)
         info = func.function_info
         args = []
+        if info.is_member:
+            this: ExprInfoBase = func.this
+            this_value = this.to_operand(chain)
+            args.append(this_value.llvm())
         if ctx.expr_List():
             for expr in ctx.expr_List().expression():
                 arg: ExprInfoBase = self.visit(expr)
@@ -335,10 +341,10 @@ class IRBuilder(MxParserVisitor):
         chain = self.stack.top_chain()
         obj: ExprInfoBase = self.visit(ctx.l)
         assert isinstance(obj.typ, InternalPtrType)
-        obj_pointer_value = obj.to_operand(chain)
         class_info = self.recorder.get_class_info(obj.typ.pointed_to.name)
         member_info = class_info.get_member(ctx.Identifier().getText())
         if isinstance(member_info, VariableInfo):
+            obj_pointer_value = obj.to_operand(chain)
             new_name = renamer.get_name_from_ctx(f"%.member.{member_info.ir_name}", ctx)
             new_ptr_name = new_name + ".ptr"
             new_value_name = new_name + ".val"
@@ -346,7 +352,8 @@ class IRBuilder(MxParserVisitor):
                 IRGetElementPtr(new_ptr_name, class_info, obj_pointer_value.llvm(), member=ctx.Identifier().getText()))
             return ExprPtr(member_info.type, new_ptr_name, new_value_name)
         else:
-            raise NotImplementedError("Function call on object is not yet supported")
+            # Function
+            return ExprFunc(member_info, obj)
 
     def visitFlow_Stmt(self, ctx: MxParser.Flow_StmtContext):
         chain = self.stack.top_chain()
