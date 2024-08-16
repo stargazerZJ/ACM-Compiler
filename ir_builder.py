@@ -3,7 +3,7 @@ import antlr4
 from antlr_generated.MxParser import MxParser
 from antlr_generated.MxParserVisitor import MxParserVisitor
 from ir_utils import IRLoad, IRStore, IRAlloca, IRBinOp, IRIcmp, BBExit, BlockChain, BuilderStack, IRModule, \
-    IRFunction, IRCall
+    IRFunction, IRCall, IRClass
 from ir_renamer import renamer
 from syntax_error import MxSyntaxError, ThrowingErrorListener
 from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo
@@ -139,6 +139,12 @@ class IRBuilder(MxParserVisitor):
         self.ir_module = IRModule()
         self.visitChildren(ctx)
         return self.ir_module
+
+    def visitClass_Definition(self, ctx: MxParser.Class_DefinitionContext):
+        class_name = ctx.Identifier().getText()
+        class_info = self.recorder.get_class_info(class_name)
+        self.ir_module.classes.append(IRClass(class_info))
+        self.visitChildren(ctx)
 
     def visitFunction_Definition(self, ctx: MxParser.Function_DefinitionContext):
         return self.visit_function_definition(ctx)
@@ -423,7 +429,7 @@ if __name__ == '__main__':
     from syntax_checker import SyntaxChecker
     import sys
 
-    test_file_path = "./testcases/demo/d6.mx"
+    test_file_path = "./testcases/demo/d7.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)

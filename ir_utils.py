@@ -1,7 +1,7 @@
 # Utility types and functions for LLVM 15 IR generation
 
 from ir_renamer import renamer
-from syntax_recorder import FunctionInfo, ClassInfo, builtin_function_infos
+from syntax_recorder import FunctionInfo, ClassInfo, builtin_function_infos, internal_array_info, VariableInfo
 from type import FunctionType
 
 
@@ -471,11 +471,33 @@ class IRFunction:
             body = "\n".join(block.llvm() for block in self.blocks)
             return f"define {self.info.ret_type.ir_name} {self.info.ir_name}({param_str}) {{\n{body}}}\n"
 
+
+class IRClass(ClassInfo):
+    def __init__(self, info: ClassInfo):
+        super().__init__(info.ir_name)
+        self.members = info.members
+        self.size = info.size
+        self.ctor = info.ctor
+
+    def llvm(self):
+        ret = f"{self.ir_name} = type {{"
+        for name, member in self.members.items():
+            if isinstance(member, VariableInfo):
+                ret += f"{member.type.ir_name}, "
+        ret = ret[:-2]
+        ret += "}"
+        return ret
+
+
 class IRModule:
     functions: list[IRFunction]
+    classes: list[IRClass]
 
     def __init__(self):
         self.functions = [IRFunction(func) for func in builtin_function_infos.values()]
+        self.classes = [IRClass(internal_array_info)]
 
     def llvm(self):
-        return "\n".join(func.llvm() for func in self.functions)
+        functions =  "\n".join(func.llvm() for func in self.functions)
+        classes = "\n".join(cls.llvm() for cls in self.classes)
+        return f"{functions}\n{classes}"

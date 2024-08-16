@@ -84,7 +84,6 @@ class ArrayType(TypeBase):
             return self.element_type
         return ArrayType(self.element_type, self.dimension - 1)
 
-    @property
     def internal_type(self) -> TypeBase:
         return InternalPtrType(self)
 
@@ -122,7 +121,6 @@ class BuiltinStringType(TypeBase):
     def can_be_null(self, ctx: ParserRuleContext = None) -> bool:
         return False
 
-    @property
     def internal_type(self) -> TypeBase:
         return InternalPtrType(self)
 
@@ -131,16 +129,14 @@ class BuiltinNullType(TypeBase):
     def __init__(self):
         super().__init__("null")
 
-    @property
     def internal_type(self) -> TypeBase:
         return InternalPtrType(self)
 
 
 class ClassType(TypeBase):
-    def __init__(self, name: str, ir_name: str = None):
-        super().__init__(name, ir_name)
+    def __init__(self, name: str):
+        super().__init__(name, "%class." + name)
 
-    @property
     def internal_type(self) -> TypeBase:
         return InternalPtrType(self)
 

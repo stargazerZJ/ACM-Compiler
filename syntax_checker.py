@@ -5,7 +5,7 @@ from type import TypeBase, FunctionType, ArrayType, ClassType, builtin_functions
 from scope import Scope, GlobalScope, ScopeBase
 from syntax_error import MxSyntaxError, ThrowingErrorListener
 from ir_renamer import renamer, reset_renamer
-from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo
+from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo, ClassInfo
 
 
 class SyntaxChecker(MxParserVisitor):
@@ -16,10 +16,10 @@ class SyntaxChecker(MxParserVisitor):
         super().__init__()
 
     def visitFile_Input(self, ctx: MxParser.File_InputContext):
+        reset_renamer()
         global_scope = self.register_class_names_and_functions(ctx)
         self.scope = Scope(global_scope)
         self.recorder = SyntaxRecorder(global_scope)
-        reset_renamer()
         for class_ctx in ctx.class_Definition():
             self.register_class_members(class_ctx)
         self.visitChildren(ctx)
@@ -36,7 +36,6 @@ class SyntaxChecker(MxParserVisitor):
         # Register functions
         for func_ctx in ctx.function_Definition():
             func = self.register_function(global_scope, func_ctx)
-            renamer.register_name(func.ir_name)
             global_scope.add_function(func, func_ctx)
 
         # Check main function
@@ -59,11 +58,14 @@ class SyntaxChecker(MxParserVisitor):
                            for arg in ctx.function_Param_List().function_Argument()]
         else:
             param_types = []
+        renamer.register_name(ir_name)
         return FunctionType(func_name, ret_type, param_types, ir_name)
 
     def register_class_members(self, ctx: MxParser.Class_DefinitionContext):
         class_name = ctx.Identifier().getText()
         class_type = self.scope.get_type(class_name, 0, ctx)
+        class_info = ClassInfo(class_type.ir_name)
+        renamer.register_name(class_type.ir_name)
 
         # Register member functions
         for func_ctx in ctx.function_Definition():
@@ -73,12 +75,16 @@ class SyntaxChecker(MxParserVisitor):
                 raise MxSyntaxError(f"Constructor '{class_name}' should be defined separately", func_ctx)
             renamer.register_name(func.ir_name)
             class_type.add_member(func.name, func)
+            # member function will be added in self.visitClass_Definition
 
         # Register member variables
         for var_ctx in ctx.variable_Definition():
             var_type = self.scope.get_type(*self.visitTypename(var_ctx.typename()), var_ctx)
             for init_stmt in var_ctx.init_Stmt():
-                class_type.add_member(init_stmt.Identifier().getText(), var_type)
+                var_name = init_stmt.Identifier().getText()
+                class_type.add_member(var_name, var_type)
+                value_info = VariableInfo(var_type, class_name + "." + var_name)
+                class_info.add_member(var_name, value_info)
 
         # Check constructor if exists
         if ctx.class_Ctor_Function():
@@ -90,6 +96,7 @@ class SyntaxChecker(MxParserVisitor):
                 raise MxSyntaxError(f"Constructor {ctor_name} should be the same as class name: {class_name}", ctor_ctx)
             ctor_ir_name = "@" + class_name + "." + class_name
             renamer.register_name(ctor_ir_name)
+        self.recorder.class_info[class_name] = class_info
 
     def visitVariable_Definition(self, ctx: MxParser.Variable_DefinitionContext):
         typename, dimension = self.visitTypename(ctx.typename())
@@ -325,17 +332,20 @@ class SyntaxChecker(MxParserVisitor):
         return self.scope.get_this_type(), False
 
     def visitClass_Definition(self, ctx: MxParser.Class_DefinitionContext):
+        class_name = ctx.Identifier().getText()
+        class_info = self.recorder.get_class_info(class_name)
         self.scope.enter_class_scope(ctx.Identifier().getText())
         if ctx.class_Ctor_Function():
             self.visitClass_Ctor_Function(ctx.class_Ctor_Function()[0])
         for function in ctx.function_Definition():
-            self.visitFunction_Definition(function)
+            function_info = self.visitFunction_Definition(function)
+            class_info.add_member(function_info.name, function_info)
         self.scope.exit_class_scope()
 
     def visitFunction_Definition(self, ctx: MxParser.Function_DefinitionContext):
         ret_type = self.scope.get_type(*self.visitTypename(ctx.function_Argument().typename()), ctx)
         function_type, function_ir_name = self.scope.get_variable(ctx.function_Argument().Identifier().getText(), ctx)
-        function_info = FunctionInfo(function_ir_name, ret_type.internal_type(),
+        function_info = FunctionInfo(function_type.name, function_ir_name, ret_type.internal_type(),
                                      [], [], self.scope.is_in_class())
         if self.scope.is_in_class():
             function_info.param_types = [self.scope.get_this_type().internal_type()]
@@ -354,11 +364,21 @@ class SyntaxChecker(MxParserVisitor):
         self.visitBlock_Stmt(ctx.block_Stmt())
         self.recorder.exit_function()
         self.scope.pop_scope()
+        return function_info
 
     def visitClass_Ctor_Function(self, ctx: MxParser.Class_Ctor_FunctionContext):
+        class_name = ctx.Identifier().getText()
+        class_info = self.recorder.get_class_info(class_name)
+        ctor_ir_name = "@" + class_name + "." + class_name
+        ctor_info = FunctionInfo(class_name, ctor_ir_name, builtin_types["void"],
+                                 [self.scope.get_this_type().internal_type()],
+                                 ["%this"], True)
+        class_info.ctor = ctor_info
         self.scope.set_return_type(builtin_types["void"])  # 'return ;' is allowed in constructor
         self.scope.push_scope()
+        self.recorder.enter_function(ctor_info, ctx)
         self.visitBlock_Stmt(ctx.block_Stmt())
+        self.recorder.exit_function()
         self.scope.pop_scope()
 
     def visitIf_Stmt(self, ctx: MxParser.If_StmtContext):
