@@ -28,7 +28,7 @@ class FunctionInfo:
     local_vars: list[VariableInfo]
     is_member: bool
 
-    def __init__(self, name:str = "", ir_name: str = "", ret_type: TypeBase = None, param_types: list[TypeBase] = None,
+    def __init__(self, name: str = "", ir_name: str = "", ret_type: TypeBase = None, param_types: list[TypeBase] = None,
                  param_ir_names: list[str] = None,
                  is_member: bool = False):
         self.name = name
@@ -39,8 +39,9 @@ class FunctionInfo:
         self.local_vars = []
         self.is_member = is_member
 
+
 builtin_function_infos: Dict[str, FunctionInfo] = {
-    name: FunctionInfo(name, func.ir_name, func.ret_type.internal_type(),
+    func.ir_name: FunctionInfo(name, func.ir_name, func.ret_type.internal_type(),
                        [typ.internal_type() for typ in func.param_types], [""] * len(func.param_types))
     for name, func in builtin_functions.items()
 }
@@ -76,7 +77,7 @@ class ClassInfo:
         return self.size
 
 
-internal_array_info: ClassInfo = ClassInfo("%.arr") # only used in multidimensional arrays
+internal_array_info: ClassInfo = ClassInfo("%.arr")  # only used in multidimensional arrays
 internal_array_info.members = {"data": VariableInfo(InternalPtrType(builtin_types["null"]), "%.arr.data"),
                                "size": VariableInfo(builtin_types["int"], "%.arr.size")}
 internal_array_info.member_idx = {"data": 0, "size": 1}
@@ -96,7 +97,7 @@ class SyntaxRecorder:
     def __init__(self, global_scope: GlobalScope):
         self.info = {}
         self.global_scope = global_scope
-        self.function_info = {}
+        self.function_info = builtin_function_infos.copy()
         self.current_function = None
         self.class_info = {"%.arr": internal_array_info}
 
