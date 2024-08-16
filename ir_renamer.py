@@ -28,10 +28,9 @@ class Renamer:
         assert name not in self.name_map
         self.name_map[name] = 1
 
+    def reset(self):
+        self.name_map = {}
+
 
 renamer: Renamer = Renamer()
 
-
-def reset_renamer():
-    global renamer
-    renamer = Renamer()

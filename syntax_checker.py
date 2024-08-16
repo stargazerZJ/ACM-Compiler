@@ -4,7 +4,7 @@ from antlr_generated.MxParser import MxParser
 from type import TypeBase, FunctionType, ArrayType, ClassType, builtin_functions, builtin_types
 from scope import Scope, GlobalScope, ScopeBase
 from syntax_error import MxSyntaxError, ThrowingErrorListener
-from ir_renamer import renamer, reset_renamer
+from ir_renamer import renamer
 from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo, ClassInfo
 
 
@@ -16,7 +16,7 @@ class SyntaxChecker(MxParserVisitor):
         super().__init__()
 
     def visitFile_Input(self, ctx: MxParser.File_InputContext):
-        reset_renamer()
+        renamer.reset()
         global_scope = self.register_class_names_and_functions(ctx)
         self.scope = Scope(global_scope)
         self.recorder = SyntaxRecorder(global_scope)
@@ -36,6 +36,7 @@ class SyntaxChecker(MxParserVisitor):
         # Register functions
         for func_ctx in ctx.function_Definition():
             func = self.register_function(global_scope, func_ctx)
+            renamer.register_name(func.ir_name)
             global_scope.add_function(func, func_ctx)
 
         # Check main function
@@ -58,7 +59,6 @@ class SyntaxChecker(MxParserVisitor):
                            for arg in ctx.function_Param_List().function_Argument()]
         else:
             param_types = []
-        renamer.register_name(ir_name)
         return FunctionType(func_name, ret_type, param_types, ir_name)
 
     def register_class_members(self, ctx: MxParser.Class_DefinitionContext):
@@ -454,14 +454,14 @@ if __name__ == '__main__':
     from antlr_generated.MxLexer import MxLexer
     import sys
 
-    # test_file_path = "./testcases/sema/basic-package/basic-41.mx"
-    # test_file_path = "./testcases/sema/class-package/class-12.mx"
-    # test_file_path = "./testcases/sema/array-package/array-2.mx"
+    # test_file_path = "./testcases/sema/basic-package/basic-1.mx"
+    test_file_path = "./testcases/sema/class-package/class-5.mx"
+    # test_file_path = "./testcases/sema/array-package/array-10.mx"
     # test_file_path = "./testcases/sema/misc-package/misc-1.mx"
     # test_file_path = "./testcases/sema/const-array-package/const_array1.mx"
     # test_file_path = "./testcases/sema/scope-package/scope-1.mx"
-    # input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
-    input_stream = antlr4.StdinStream(encoding='utf-8')
+    input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
+    # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)
     parser = MxParser(antlr4.CommonTokenStream(lexer))
 

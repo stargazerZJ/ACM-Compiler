@@ -67,6 +67,8 @@ class SyntaxTester:
             if error_message:
                 log_message += f" | Error: {error_message}"
         except Exception as e:
+            # import traceback
+            # traceback.print_exc()
             log_message += f"FAILED: {file_path} | Unexpected error: {e}"
             test_pass = False
         if verdict_comment:
