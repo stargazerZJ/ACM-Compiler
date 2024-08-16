@@ -161,6 +161,19 @@ class IRPhi(IRCmdBase):
         ret = ret[:-2]
         return ret
 
+class IRCall(IRCmdBase):
+    def __init__(self, dest: str, func: str, typ: str, args: list[tuple[str, str]]):
+        self.dest = dest
+        self.func = func
+        self.typ = typ
+        self.args = args
+
+    def llvm(self):
+        if self.dest == "":
+            return f"call {self.typ} {self.func}({', '.join(f'{ty} {name}' for ty, name in self.args)})"
+        return f"{self.dest} = call {self.typ} {self.func}({', '.join(f'{ty} {name}' for ty, name in self.args)})"
+
+
 
 class BlockChain:
     """Chain of basic blocks, helper class for IRGenerator"""

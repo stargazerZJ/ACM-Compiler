@@ -3,11 +3,11 @@ import antlr4
 from antlr_generated.MxParser import MxParser
 from antlr_generated.MxParserVisitor import MxParserVisitor
 from ir_utils import IRLoad, IRStore, IRAlloca, IRBinOp, IRIcmp, BBExit, BlockChain, BuilderStack, IRModule, \
-    IRFunction
+    IRFunction, IRCall
 from ir_renamer import renamer
 from syntax_error import MxSyntaxError, ThrowingErrorListener
 from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo
-from type import TypeBase, builtin_types, InternalPtrType
+from type import TypeBase, builtin_types, InternalPtrType, FunctionType
 
 
 class ExprInfoBase:
@@ -116,6 +116,13 @@ class ExprBoolFlow(ExprInfoBase):
         chain.set_exits(self.true_exits)
         chain.merge_exits(self.false_exits)
 
+class ExprFunc(ExprInfoBase):
+    function_info: FunctionInfo
+
+    def __init__(self, function_info: FunctionInfo):
+        super().__init__(function_info.ret_type, function_info.ir_name)
+        self.function_info = function_info
+
 
 class IRBuilder(MxParserVisitor):
     """Demo code (for now)"""
@@ -162,6 +169,9 @@ class IRBuilder(MxParserVisitor):
 
     def visitAtom(self, ctx: MxParser.AtomContext):
         variable_info = self.recorder.get_typed_info(ctx, VariableInfo)
+        if isinstance(variable_info.type, FunctionType):
+            function_info = self.recorder.get_function_info(variable_info.ir_name)
+            return ExprFunc(function_info)
         return ExprPtr(variable_info.type, variable_info.pointer_name(), variable_info.value_name_hint())
 
     def visitLiteral_Constant(self, ctx: MxParser.Literal_ConstantContext):
@@ -264,6 +274,25 @@ class IRBuilder(MxParserVisitor):
                 true_exits = lhs_true
                 false_exits = []
         return ExprBoolFlow(builtin_types["bool"], true_exits, false_exits)
+
+    def visitFunction(self, ctx: MxParser.FunctionContext):
+        chain = self.stack.top_chain()
+        func: ExprFunc = self.visit(ctx.l)
+        info = func.function_info
+        args = []
+        if ctx.expr_List():
+            for expr in ctx.expr_List().expression():
+                arg:ExprInfoBase = self.visit(expr)
+                arg_value = arg.to_operand(chain)
+                args.append((arg_value.typ.ir_name, arg_value.ir_name))
+        if info.ret_type == builtin_types["void"]:
+            chain.add_cmd(IRCall("", info.ir_name, info.ret_type.ir_name, args))
+            return ExprValue(builtin_types["void"], "")
+        else:
+            new_name = renamer.get_name_from_ctx("%.call", ctx)
+            chain.add_cmd(IRCall(new_name, info.ir_name, info.ret_type.ir_name, args))
+            return ExprValue(info.ret_type, new_name)
+
 
     def visitFlow_Stmt(self, ctx: MxParser.Flow_StmtContext):
         chain = self.stack.top_chain()

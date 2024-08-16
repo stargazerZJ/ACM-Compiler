@@ -73,3 +73,6 @@ class SyntaxRecorder:
 
     def exit_function(self):
         self.current_function = None
+
+    def get_function_info(self, ir_name: str) -> FunctionInfo:
+        return self.function_info[ir_name]
