@@ -176,6 +176,11 @@ class IRCall(IRCmdBase):
         return f"{self.dest} = call {self.typ} {self.func.ir_name}({
         ', '.join(f'{ty.ir_name} {name}' for ty, name in zip(self.func.param_types, self.args))})"
 
+class IRMalloc(IRCall):
+    """Only structs use malloc. Arrays use __newPtrArray, __newIntArray etc."""
+    def __init__(self, dest: str, cls: ClassInfo):
+        super().__init__(dest, builtin_function_infos["@malloc"], [str(cls.size)])
+
 
 class BlockChain:
     """Chain of basic blocks, helper class for IRGenerator"""

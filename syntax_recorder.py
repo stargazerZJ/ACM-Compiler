@@ -1,6 +1,7 @@
+import itertools
 from typing import Any, Dict, Tuple, Type, TypeVar
 from antlr4 import ParserRuleContext
-from type import TypeBase, InternalPtrType, builtin_types, builtin_functions
+from type import TypeBase, InternalPtrType, builtin_types, builtin_functions, internal_functions
 from scope import GlobalScope
 
 
@@ -42,8 +43,8 @@ class FunctionInfo:
 
 builtin_function_infos: Dict[str, FunctionInfo] = {
     func.ir_name: FunctionInfo(name, func.ir_name, func.ret_type.internal_type(),
-                       [typ.internal_type() for typ in func.param_types], [""] * len(func.param_types))
-    for name, func in builtin_functions.items()
+                               [typ.internal_type() for typ in func.param_types], [""] * len(func.param_types))
+    for name, func in itertools.chain(builtin_functions.items(), internal_functions.items())
 }
 
 

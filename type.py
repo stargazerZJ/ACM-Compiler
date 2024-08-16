@@ -141,23 +141,6 @@ class ClassType(TypeBase):
         return InternalPtrType(self)
 
 
-builtin_types = {
-    "int": BuiltinIntType(),
-    "bool": BuiltinBoolType(),
-    "void": BuiltinVoidType(),
-    "string": BuiltinStringType(),
-    "null": BuiltinNullType(),  # a special type for null literal
-}
-builtin_functions = {
-    "print": FunctionType("print", BuiltinVoidType(), [BuiltinStringType()]),
-    "println": FunctionType("println", BuiltinVoidType(), [BuiltinStringType()]),
-    "printInt": FunctionType("printInt", BuiltinVoidType(), [BuiltinIntType()]),
-    "printlnInt": FunctionType("printlnInt", BuiltinVoidType(), [BuiltinIntType()]),
-    "getString": FunctionType("getString", BuiltinStringType(), []),
-    "getInt": FunctionType("getInt", BuiltinIntType(), []),
-    "toString": FunctionType("toString", BuiltinStringType(), [BuiltinIntType()]),
-}
-
 
 class InternalPtrType(TypeBase):
     """Internal type for pointers"""
@@ -166,3 +149,29 @@ class InternalPtrType(TypeBase):
     def __init__(self, pointed_to: TypeBase = None):
         super().__init__("ptr", "ptr")
         self.pointed_to = pointed_to
+
+builtin_types = {
+    "int": BuiltinIntType(),
+    "bool": BuiltinBoolType(),
+    "void": BuiltinVoidType(),
+    "string": BuiltinStringType(),
+    "null": BuiltinNullType(),  # a special type for null literal
+}
+builtin_functions = {
+    "print": FunctionType("print", builtin_types["void"], [builtin_types["string"]]),
+    "println": FunctionType("println", builtin_types["void"], [builtin_types["string"]]),
+    "printInt": FunctionType("printInt", builtin_types["void"], [builtin_types["int"]]),
+    "printlnInt": FunctionType("printlnInt", builtin_types["void"], [builtin_types["int"]]),
+    "getString": FunctionType("getString", builtin_types["string"], []),
+    "getInt": FunctionType("getInt", builtin_types["int"], []),
+    "toString": FunctionType("toString", builtin_types["string"], [builtin_types["int"]]),
+}
+
+internal_functions = {
+    "string.length": builtin_types["string"].members["length"],
+    "string.substring": builtin_types["string"].members["substring"],
+    "string.parseInt": builtin_types["string"].members["parseInt"],
+    "string.ord": builtin_types["string"].members["ord"],
+    "malloc": FunctionType("malloc", InternalPtrType(builtin_types["int"]), [builtin_types["int"]]),
+    # array.size is always inlined, so we don't need to define it here
+}

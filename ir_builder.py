@@ -3,7 +3,7 @@ import antlr4
 from antlr_generated.MxParser import MxParser
 from antlr_generated.MxParserVisitor import MxParserVisitor
 from ir_utils import IRLoad, IRStore, IRAlloca, IRBinOp, IRIcmp, BBExit, BlockChain, BuilderStack, IRModule, \
-    IRFunction, IRCall, IRClass
+    IRFunction, IRCall, IRClass, IRMalloc
 from ir_renamer import renamer
 from syntax_error import MxSyntaxError, ThrowingErrorListener
 from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo
@@ -305,6 +305,30 @@ class IRBuilder(MxParserVisitor):
             chain.add_cmd(IRCall(new_name, info, args))
             return ExprValue(info.ret_type, new_name)
 
+    def visitNew_Type(self, ctx: MxParser.New_TypeContext):
+        chain = self.stack.top_chain()
+        if ctx.BasicTypes():
+            element_type = builtin_types[ctx.BasicTypes().getText()]
+            if ctx.new_Index():
+                # new int[10][]
+                raise NotImplementedError("arrays are not yet supported")
+            else:
+                # new int[][] { {1, 2}, {3, 4} }
+                raise NotImplementedError("arrays are not yet supported")
+        else:
+            if ctx.new_Index():
+                # new A[10]
+                raise NotImplementedError("arrays are not yet supported")
+            else:
+                # new A()
+                class_name = ctx.Identifier().getText()
+                class_info = self.recorder.get_class_info(class_name)
+                class_internal_type = self.recorder.get_typed_info(ctx, VariableInfo).type # internal pointer type
+                new_name = renamer.get_name_from_ctx(f"%.new.{class_name}", ctx)
+                chain.add_cmd(IRMalloc(new_name, class_info))
+                if class_info.ctor:
+                    chain.add_cmd(IRCall("", class_info.ctor, [new_name]))
+                return ExprValue(class_internal_type, new_name)
 
     def visitFlow_Stmt(self, ctx: MxParser.Flow_StmtContext):
         chain = self.stack.top_chain()
@@ -429,7 +453,7 @@ if __name__ == '__main__':
     from syntax_checker import SyntaxChecker
     import sys
 
-    test_file_path = "./testcases/demo/d6.mx"
+    test_file_path = "./testcases/demo/d7.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)

@@ -233,6 +233,7 @@ class SyntaxChecker(MxParserVisitor):
                 return ArrayType(class_type, dimensions), False
             else:
                 # new A()
+                self.recorder.record(ctx, VariableInfo(class_type.internal_type(), ""))
                 return class_type, False
 
     def visitNew_Index(self, ctx: MxParser.New_IndexContext):
@@ -344,7 +345,8 @@ class SyntaxChecker(MxParserVisitor):
 
     def visitFunction_Definition(self, ctx: MxParser.Function_DefinitionContext):
         ret_type = self.scope.get_type(*self.visitTypename(ctx.function_Argument().typename()), ctx)
-        function_type, function_ir_name = self.scope.get_variable(ctx.function_Argument().Identifier().getText(), ctx)
+        function_type, _ = self.scope.get_variable(ctx.function_Argument().Identifier().getText(), ctx)
+        function_ir_name = function_type.ir_name
         function_info = FunctionInfo(function_type.name, function_ir_name, ret_type.internal_type(),
                                      [], [], self.scope.is_in_class())
         if self.scope.is_in_class():
