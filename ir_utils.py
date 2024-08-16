@@ -172,9 +172,9 @@ class IRCall(IRCmdBase):
     def llvm(self):
         if self.dest == "":
             return f"call {self.typ} {self.func.ir_name}({
-            ', '.join(f'{ty} {name}' for ty, name in zip(self.func.param_types, self.args))})"
+            ', '.join(f'{ty.ir_name} {name}' for ty, name in zip(self.func.param_types, self.args))})"
         return f"{self.dest} = call {self.typ} {self.func.ir_name}({
-        ', '.join(f'{ty} {name}' for ty, name in zip(self.func.param_types, self.args))})"
+        ', '.join(f'{ty.ir_name} {name}' for ty, name in zip(self.func.param_types, self.args))})"
 
 
 class BlockChain:
