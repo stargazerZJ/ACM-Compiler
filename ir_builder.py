@@ -141,8 +141,14 @@ class IRBuilder(MxParserVisitor):
         return self.ir_module
 
     def visitFunction_Definition(self, ctx: MxParser.Function_DefinitionContext):
+        return self.visit_function_definition(ctx)
+
+    def visitClass_Ctor_Function(self, ctx: MxParser.Class_Ctor_FunctionContext):
+        return self.visit_function_definition(ctx)
+
+    def visit_function_definition(self, ctx: MxParser.Function_DefinitionContext | MxParser.Class_Ctor_FunctionContext):
         function_info = self.recorder.get_typed_info(ctx, FunctionInfo)
-        chain = BlockChain(function_info.ir_name[1:])
+        chain = BlockChain(function_info.name)
         for local_var in function_info.local_vars:
             chain.add_cmd(IRAlloca(local_var.pointer_name(), local_var.type.ir_name))
         for param_name, param_type in zip(function_info.param_ir_names, function_info.param_types):
@@ -284,13 +290,13 @@ class IRBuilder(MxParserVisitor):
             for expr in ctx.expr_List().expression():
                 arg:ExprInfoBase = self.visit(expr)
                 arg_value = arg.to_operand(chain)
-                args.append((arg_value.typ.ir_name, arg_value.ir_name))
+                args.append(arg_value.llvm())
         if info.ret_type == builtin_types["void"]:
-            chain.add_cmd(IRCall("", info.ir_name, info.ret_type.ir_name, args))
+            chain.add_cmd(IRCall("", info, args))
             return ExprValue(builtin_types["void"], "")
         else:
             new_name = renamer.get_name_from_ctx("%.call", ctx)
-            chain.add_cmd(IRCall(new_name, info.ir_name, info.ret_type.ir_name, args))
+            chain.add_cmd(IRCall(new_name, info, args))
             return ExprValue(info.ret_type, new_name)
 
 

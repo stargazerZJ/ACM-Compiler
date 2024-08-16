@@ -1,7 +1,7 @@
 # Utility types and functions for LLVM 15 IR generation
 
 from ir_renamer import renamer
-from syntax_recorder import FunctionInfo
+from syntax_recorder import FunctionInfo, ClassInfo, builtin_function_infos
 from type import FunctionType
 
 
@@ -161,18 +161,20 @@ class IRPhi(IRCmdBase):
         ret = ret[:-2]
         return ret
 
+
 class IRCall(IRCmdBase):
-    def __init__(self, dest: str, func: str, typ: str, args: list[tuple[str, str]]):
+    def __init__(self, dest: str, func: FunctionInfo, args: list[str]):
         self.dest = dest
         self.func = func
-        self.typ = typ
+        self.typ = func.ret_type.ir_name
         self.args = args
 
     def llvm(self):
         if self.dest == "":
-            return f"call {self.typ} {self.func}({', '.join(f'{ty} {name}' for ty, name in self.args)})"
-        return f"{self.dest} = call {self.typ} {self.func}({', '.join(f'{ty} {name}' for ty, name in self.args)})"
-
+            return f"call {self.typ} {self.func.ir_name}({
+            ', '.join(f'{ty} {name}' for ty, name in zip(self.func.param_types, self.args))})"
+        return f"{self.dest} = call {self.typ} {self.func.ir_name}({
+        ', '.join(f'{ty} {name}' for ty, name in zip(self.func.param_types, self.args))})"
 
 
 class BlockChain:
@@ -459,17 +461,13 @@ class IRFunction:
         self.info = info
         self.blocks = chain.collect_blocks() if chain is not None else None
 
-    @staticmethod
-    def declare(func: FunctionType):
-        # TODO
-        # return IRFunction(FunctionInfo(func.ir_name, func.ret_type, func.param_types, func.param_ir_names))
-        pass
-
     def llvm(self):
-        param_str = ", ".join(f"{ty.ir_name} {name}.param" for ty, name in zip(self.info.param_types, self.info.param_ir_names))
         if self.blocks is None:
+            param_str = ", ".join(f"{ty.ir_name}" for ty in self.info.param_types)
             return f"declare {self.info.ret_type.ir_name} {self.info.ir_name}({param_str})"
         else:
+            param_str = ", ".join(
+                f"{ty.ir_name} {name}.param" for ty, name in zip(self.info.param_types, self.info.param_ir_names))
             body = "\n".join(block.llvm() for block in self.blocks)
             return f"define {self.info.ret_type.ir_name} {self.info.ir_name}({param_str}) {{\n{body}}}\n"
 
@@ -477,7 +475,7 @@ class IRModule:
     functions: list[IRFunction]
 
     def __init__(self):
-        self.functions = []
+        self.functions = [IRFunction(func) for func in builtin_function_infos.values()]
 
     def llvm(self):
         return "\n".join(func.llvm() for func in self.functions)
