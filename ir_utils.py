@@ -375,7 +375,7 @@ class BlockChain:
     def has_exits(self):
         return len(self.exits) > 0
 
-    def llvm(self):
+    def collect_blocks(self) -> list[BasicBlock]:
         visited = set()
         result = []
 
@@ -390,7 +390,11 @@ class BlockChain:
         start_block = self.header if self.header else unreachable_block
         dfs(start_block)
 
-        return "\n".join(block.llvm() for block in result)
+        return result
+
+    def llvm(self):
+        blocks = self.collect_blocks()
+        return "\n".join(block.llvm() for block in blocks)
 
 
 class BuilderStack:
@@ -449,11 +453,11 @@ class BuilderStack:
 
 class IRFunction:
     info: FunctionInfo
-    chain: BlockChain = None
+    blocks: list[BasicBlock] | None
 
     def __init__(self, info: FunctionInfo, chain: BlockChain = None):
         self.info = info
-        self.chain = chain
+        self.blocks = chain.collect_blocks() if chain is not None else None
 
     @staticmethod
     def declare(func: FunctionType):
@@ -463,10 +467,10 @@ class IRFunction:
 
     def llvm(self):
         param_str = ", ".join(f"{ty.ir_name} {name}.param" for ty, name in zip(self.info.param_types, self.info.param_ir_names))
-        if self.chain is None:
+        if self.blocks is None:
             return f"declare {self.info.ret_type.ir_name} {self.info.ir_name}({param_str})"
         else:
-            body = self.chain.llvm()
+            body = "\n".join(block.llvm() for block in self.blocks)
             return f"define {self.info.ret_type.ir_name} {self.info.ir_name}({param_str}) {{\n{body}}}\n"
 
 class IRModule:

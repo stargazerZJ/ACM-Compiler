@@ -36,6 +36,27 @@ class FunctionInfo:
         self.local_vars = []
         self.is_member = is_member
 
+class ClassInfo:
+    ir_name: str
+    members: Dict[str, VariableInfo | FunctionInfo]
+    member_idx: Dict[str, int]
+    size: int # size of the class in bytes
+
+    def __init__(self, ir_name: str):
+        self.ir_name = ir_name
+        self.members = {}
+        self.member_idx = {}
+        self.size = 0
+
+    def get_member(self, name: str) -> VariableInfo | FunctionInfo:
+        return self.members[name]
+
+    def get_member_idx(self, name: str) -> int:
+        return self.member_idx[name]
+
+    def get_size(self) -> int:
+        return self.size
+
 
 T = TypeVar('T')
 
