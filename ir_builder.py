@@ -350,6 +350,51 @@ class IRBuilder(MxParserVisitor):
             elif ctx.op.text == "+":
                 return self.visit(ctx.r)
 
+    def visitTernary(self, ctx: MxParser.TernaryContext):
+        chain = self.stack.top_chain()
+        condition: ExprInfoBase = self.visit(ctx.cond)
+        true_exits, false_exits = condition.to_bool_flow(chain).flows()
+        if not true_exits:
+            chain.set_exits(false_exits)
+            return self.visit(ctx.false_expr)
+        elif not false_exits:
+            chain.set_exits(true_exits)
+            return self.visit(ctx.true_expr)
+        true_chain = BlockChain("ternary_true", true_exits, allow_attach=True)
+        self.stack.push(true_chain)
+        true_result: ExprInfoBase = self.visit(ctx.l)
+        self.stack.pop()
+        false_chain = BlockChain("ternary_false", false_exits, allow_attach=True)
+        self.stack.push(false_chain)
+        false_result: ExprInfoBase = self.visit(ctx.r)
+        self.stack.pop()
+        if true_result.typ == builtin_types["bool"]:
+            true_true, true_false = true_result.to_bool_flow(true_chain).flows()
+            false_true, false_false = false_result.to_bool_flow(false_chain).flows()
+            true_exits = BlockChain.merge_exit_lists(true_true + false_true)
+            false_exits = BlockChain.merge_exit_lists(true_false + false_false)
+            return ExprBoolFlow(builtin_types["bool"], true_exits, false_exits)
+        elif true_result.typ == builtin_types["void"]:
+            true_chain.merge_exits(false_chain.exits)
+            chain.merge_exits(true_chain.exits)
+            return ExprValue(builtin_types["void"], "")
+        else:
+            true_value = true_result.to_operand(true_chain)
+            # concentrate is called to ensure at least one block is created
+            # this is a conservative approach compared to that in logical expressions, if branches, and loops
+            # the main consideration is that the ternary operator is added to the language later and is not used frequently
+            true_chain.concentrate()
+            true_exits = true_chain.jump()
+            false_value = false_result.to_operand(false_chain)
+            false_chain.concentrate()
+            false_exits = false_chain.jump()
+            new_name = renamer.get_name_from_ctx("%.ternary", ctx)
+            result_chain = BlockChain("ternary_result", allow_attach=True)
+            result_chain.phi(new_name, true_value.typ.ir_name,
+                             [(bb_exit, true_value.llvm()) for bb_exit in true_exits] +
+                             [(bb_exit, false_value.llvm()) for bb_exit in false_exits])
+            chain.merge_exits(result_chain.exits)
+            return ExprValue(true_value.typ, new_name)
 
     def visitFunction(self, ctx: MxParser.FunctionContext):
         chain = self.stack.top_chain()

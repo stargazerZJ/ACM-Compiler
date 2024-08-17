@@ -364,9 +364,8 @@ class BlockChain:
         self.concentrate().add_cmd(cmd)
 
     def phi(self, dest: str, typ: str, values: list[tuple[BBExit, str]]):
-        """DEPRECIATED Can only be called when chain is just created"""
-        assert self.header is None
-        assert len(self.exits) == 0
+        """Can only be called when chain is just created"""
+        assert not self.header.cmds
         self.exits = [exit_ for exit_, _ in values]
         block = self.concentrate()
         block.add_cmd(IRPhi(dest, typ, values))
