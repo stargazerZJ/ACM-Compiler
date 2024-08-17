@@ -308,6 +308,49 @@ class IRBuilder(MxParserVisitor):
                 false_exits = []
         return ExprBoolFlow(builtin_types["bool"], true_exits, false_exits)
 
+    def visitUnary(self, ctx: MxParser.UnaryContext):
+        chain = self.stack.top_chain()
+        if ctx.l:
+            # a ++ or a --
+            lhs: ExprPtr = self.visit(ctx.l)
+            old_value = lhs.to_operand(chain)
+            op = "add" if ctx.op.text == "++" else "sub"
+            new_name = renamer.get_name_from_ctx(f"%.post_{op}", ctx)
+            chain.add_cmd(IRBinOp(new_name, op, old_value.llvm(), "1", lhs.typ.ir_name))
+            chain.add_cmd(IRStore(lhs.ir_name, new_name, lhs.typ.ir_name))
+            return old_value # return the value before the operation
+        else:
+            # ++ a, -- a, ! a, ~ a, + a, - a
+            if ctx.op.text in ("++", "--"):
+                ptr: ExprPtr = self.visit(ctx.r)
+                old_value = ptr.to_operand(chain)
+                op = "add" if ctx.op.text == "++" else "sub"
+                new_name = renamer.get_name_from_ctx(f"%.pre_{op}", ctx)
+                chain.add_cmd(IRBinOp(new_name, op, old_value.llvm(), "1", old_value.typ.ir_name))
+                chain.add_cmd(IRStore(ptr.ir_name, new_name, ptr.typ.ir_name))
+                return ptr # return the pointer
+            elif ctx.op.text == "!":
+                value: ExprInfoBase = self.visit(ctx.r)
+                flow = value.to_bool_flow(chain)
+                true_exits, false_exits = flow.flows()
+                return ExprBoolFlow(builtin_types["bool"], false_exits, true_exits) # swap true and false
+            elif ctx.op.text == "~":
+                value: ExprInfoBase = self.visit(ctx.r)
+                value_operand = value.to_operand(chain)
+                new_name = renamer.get_name_from_ctx("%.not", ctx)
+                bitmask = "-1" # only i32 is supported by this operation in this language
+                chain.add_cmd(IRBinOp(new_name, "xor", value_operand.llvm(), bitmask, value_operand.typ.ir_name))
+                return ExprValue(value_operand.typ, new_name)
+            elif ctx.op.text == "-":
+                value: ExprInfoBase = self.visit(ctx.r)
+                value_operand = value.to_operand(chain)
+                new_name = renamer.get_name_from_ctx("%.neg", ctx)
+                chain.add_cmd(IRBinOp(new_name, "sub", "0", value_operand.llvm(), value_operand.typ.ir_name))
+                return ExprValue(value_operand.typ, new_name)
+            elif ctx.op.text == "+":
+                return self.visit(ctx.r)
+
+
     def visitFunction(self, ctx: MxParser.FunctionContext):
         chain = self.stack.top_chain()
         func: ExprFunc = self.visit(ctx.l)
@@ -496,7 +539,7 @@ if __name__ == '__main__':
     from syntax_checker import SyntaxChecker
     import sys
 
-    test_file_path = "./testcases/demo/d7.mx"
+    test_file_path = "./testcases/demo/d1.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)
