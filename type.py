@@ -127,7 +127,7 @@ class BuiltinStringType(TypeBase):
 
 class BuiltinNullType(TypeBase):
     def __init__(self):
-        super().__init__("null")
+        super().__init__("null", "ptr")
 
     def internal_type(self) -> TypeBase:
         return InternalPtrType(self)

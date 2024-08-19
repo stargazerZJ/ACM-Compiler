@@ -64,14 +64,13 @@ class ExprPtr(ExprInfoBase):
 
 class ExprImm(ExprInfoBase):
     """value is the immediate value"""
-    value: int | bool
-
-    def __init__(self, typ: TypeBase, value: int | bool):
+    value: int | bool | None
+    def __init__(self, typ: TypeBase, value: int | bool | None):
         super().__init__(typ, "invalid")
         self.value = value
 
     def llvm(self):
-        return str(self.value).lower()
+        return str(self.value).lower() if self.value is not None else "null"
 
     def to_operand(self, chain: BlockChain) -> "ExprImm":
         return self
@@ -216,7 +215,7 @@ class IRBuilder(MxParserVisitor):
             return ExprImm(builtin_types["bool"], False)
         else:
             # Null
-            raise NotImplementedError("Null is not yet supported")
+            return ExprImm(builtin_types["null"], None)
 
     def visitBracket(self, ctx: MxParser.BracketContext):
         return self.visit(ctx.l)
@@ -584,7 +583,7 @@ if __name__ == '__main__':
     from syntax_checker import SyntaxChecker
     import sys
 
-    test_file_path = "./testcases/demo/d1.mx"
+    test_file_path = "./testcases/demo/d8.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)
