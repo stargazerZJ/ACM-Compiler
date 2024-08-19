@@ -83,7 +83,7 @@ class SyntaxChecker(MxParserVisitor):
             for init_stmt in var_ctx.init_Stmt():
                 var_name = init_stmt.Identifier().getText()
                 class_type.add_member(var_name, var_type)
-                value_info = VariableInfo(var_type, var_name)
+                value_info = VariableInfo(var_type.internal_type(), var_name)
                 class_info.add_member(var_name, value_info)
 
         # Check constructor if exists
@@ -119,9 +119,12 @@ class SyntaxChecker(MxParserVisitor):
                 self.visitArray_Literal(init_stmt.array_Literal(), typename, dimension)
             ir_prefix = "@" if self.scope.is_global() else "%"
             ir_name = renamer.get_name_from_ctx(ir_prefix + init_stmt.Identifier().getText(), init_stmt)
-            self.recorder.record(init_stmt, VariableInfo(type_.internal_type(), ir_name))
+            variable_info = VariableInfo(type_.internal_type(), ir_name)
+            self.recorder.record(init_stmt, variable_info)
             if not self.scope.is_global():
-                self.recorder.current_function.local_vars.append(VariableInfo(type_.internal_type(), ir_name))
+                self.recorder.current_function.local_vars.append(variable_info)
+                if isinstance(type_, ArrayType):
+                    self.recorder.current_function.local_vars.append(variable_info.arr_size_info())
             self.scope.add_variable(init_stmt.Identifier().getText(), type_, ctx, ir_name)
 
     def visitArray_Literal(self, ctx: MxParser.Array_LiteralContext, typename: str = "", dimension: int = 0):
@@ -219,7 +222,9 @@ class SyntaxChecker(MxParserVisitor):
             if ctx.new_Index():
                 # new int[10][]
                 dimensions = self.visitNew_Index(ctx.new_Index())
-                return ArrayType(element_type, dimensions), False
+                array_type = ArrayType(element_type, dimensions)
+                self.recorder.record(ctx, VariableInfo(array_type.internal_type(), ""))
+                return array_type, False
             else:
                 # new int[][] { {1, 2}, {3, 4} }
                 dimensions = len(ctx.Brack_Left_())
@@ -232,7 +237,10 @@ class SyntaxChecker(MxParserVisitor):
             if ctx.new_Index():
                 # new A[10]
                 dimensions = self.visitNew_Index(ctx.new_Index())
-                return ArrayType(class_type, dimensions), False
+                array_type = ArrayType(class_type, dimensions)
+                self.recorder.record(ctx, VariableInfo(
+                    ArrayType(class_type.internal_type(), dimensions).internal_type(), ""))
+                return array_type, False
             else:
                 # new A()
                 self.recorder.record(ctx, VariableInfo(class_type.internal_type(), ""))
