@@ -65,6 +65,7 @@ class ExprPtr(ExprInfoBase):
 class ExprImm(ExprInfoBase):
     """value is the immediate value"""
     value: int | bool | None
+
     def __init__(self, typ: TypeBase, value: int | bool | None):
         super().__init__(typ, "invalid")
         self.value = value
@@ -178,12 +179,6 @@ class IRBuilder(MxParserVisitor):
                     # mark the exits of the function as unreachable
                     chain.jump()
         self.ir_module.functions.append(IRFunction(function_info, chain))
-
-    def visitSimple_Stmt(self, ctx: MxParser.Simple_StmtContext):
-        if ctx.expression():
-            info: ExprInfoBase = self.visit(ctx.expression())
-            if isinstance(info, ExprBoolFlow):
-                info.concentrate(self.stack.top_chain())
 
     def visitAtom(self, ctx: MxParser.AtomContext):
         variable_info = self.recorder.get_typed_info(ctx, VariableInfo)
@@ -317,7 +312,7 @@ class IRBuilder(MxParserVisitor):
             new_name = renamer.get_name_from_ctx(f"%.post_{op}", ctx)
             chain.add_cmd(IRBinOp(new_name, op, old_value.llvm(), "1", lhs.typ.ir_name))
             chain.add_cmd(IRStore(lhs.ir_name, new_name, lhs.typ.ir_name))
-            return old_value # return the value before the operation
+            return old_value  # return the value before the operation
         else:
             # ++ a, -- a, ! a, ~ a, + a, - a
             if ctx.op.text in ("++", "--"):
@@ -327,17 +322,17 @@ class IRBuilder(MxParserVisitor):
                 new_name = renamer.get_name_from_ctx(f"%.pre_{op}", ctx)
                 chain.add_cmd(IRBinOp(new_name, op, old_value.llvm(), "1", old_value.typ.ir_name))
                 chain.add_cmd(IRStore(ptr.ir_name, new_name, ptr.typ.ir_name))
-                return ptr # return the pointer
+                return ptr  # return the pointer
             elif ctx.op.text == "!":
                 value: ExprInfoBase = self.visit(ctx.r)
                 flow = value.to_bool_flow(chain)
                 true_exits, false_exits = flow.flows()
-                return ExprBoolFlow(builtin_types["bool"], false_exits, true_exits) # swap true and false
+                return ExprBoolFlow(builtin_types["bool"], false_exits, true_exits)  # swap true and false
             elif ctx.op.text == "~":
                 value: ExprInfoBase = self.visit(ctx.r)
                 value_operand = value.to_operand(chain)
                 new_name = renamer.get_name_from_ctx("%.not", ctx)
-                bitmask = "-1" # only i32 is supported by this operation in this language
+                bitmask = "-1"  # only i32 is supported by this operation in this language
                 chain.add_cmd(IRBinOp(new_name, "xor", value_operand.llvm(), bitmask, value_operand.typ.ir_name))
                 return ExprValue(value_operand.typ, new_name)
             elif ctx.op.text == "-":
@@ -459,6 +454,12 @@ class IRBuilder(MxParserVisitor):
         else:
             # Function
             return ExprFunc(member_info, obj)
+
+    def visitSimple_Stmt(self, ctx: MxParser.Simple_StmtContext):
+        if ctx.expression():
+            info: ExprInfoBase = self.visit(ctx.expression())
+            if isinstance(info, ExprBoolFlow):
+                info.concentrate(self.stack.top_chain())
 
     def visitFlow_Stmt(self, ctx: MxParser.Flow_StmtContext):
         chain = self.stack.top_chain()
