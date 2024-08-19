@@ -361,7 +361,7 @@ class SyntaxChecker(MxParserVisitor):
                 ir_name = renamer.get_name_from_ctx("%" + argument.Identifier().getText(), argument)
                 function_info.param_types.append(arg_type.internal_type())
                 function_info.param_ir_names.append(ir_name)
-                function_info.local_vars.append(VariableInfo(arg_type, ir_name))
+                function_info.local_vars.append(VariableInfo(arg_type.internal_type(), ir_name))
                 self.scope.add_variable(argument.Identifier().getText(), arg_type, argument, ir_name)
         self.recorder.enter_function(function_info, ctx)
         self.visitBlock_Stmt(ctx.block_Stmt())
