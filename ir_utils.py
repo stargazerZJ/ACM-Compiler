@@ -200,6 +200,16 @@ class IRGetElementPtr(IRCmdBase):
             return f"{self.dest} = getelementptr inbounds {self.typ.ir_name}, ptr {self.ptr}, i32 {self.arr_index}"
 
 
+class IRGlobal:
+    def __init__(self, name: str, typ: str, value: str ):
+        self.name = name
+        self.typ = typ
+        self.value = value
+
+    def llvm(self):
+        return f"{self.name} = global {self.typ} {self.value}"
+
+
 class BlockChain:
     """Chain of basic blocks, helper class for IRGenerator"""
     header: BasicBlock | None
@@ -525,12 +535,15 @@ class IRClass(ClassInfo):
 class IRModule:
     functions: list[IRFunction]
     classes: list[IRClass]
+    globals: list[IRGlobal]
 
     def __init__(self):
         self.functions = [IRFunction(func) for func in builtin_function_infos.values()]
         self.classes = [IRClass(internal_array_info)]
+        self.globals = []
 
     def llvm(self):
         functions = "\n".join(func.llvm() for func in self.functions)
         classes = "\n".join(cls.llvm() for cls in self.classes)
-        return f"{functions}\n{classes}"
+        global_vars = "\n".join(var.llvm() for var in self.globals)
+        return f"{functions}\n{classes}\n{global_vars}"

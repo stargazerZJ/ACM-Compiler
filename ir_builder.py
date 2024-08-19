@@ -3,7 +3,7 @@ import antlr4
 from antlr_generated.MxParser import MxParser
 from antlr_generated.MxParserVisitor import MxParserVisitor
 from ir_utils import IRLoad, IRStore, IRAlloca, IRBinOp, IRIcmp, BBExit, BlockChain, BuilderStack, IRModule, \
-    IRFunction, IRCall, IRClass, IRMalloc, IRGetElementPtr
+    IRFunction, IRCall, IRClass, IRMalloc, IRGetElementPtr, IRGlobal
 from ir_renamer import renamer
 from syntax_error import MxSyntaxError, ThrowingErrorListener
 from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo
@@ -82,6 +82,19 @@ class ExprImm(ExprInfoBase):
         else:
             return ExprBoolFlow(builtin_types["bool"], [], chain.jump())
 
+    @staticmethod
+    def default_value(typ: TypeBase) -> "ExprImm":
+        if typ == builtin_types["int"]:
+            return ExprImm(typ, 0)
+        elif typ == builtin_types["bool"]:
+            return ExprImm(typ, False)
+        elif typ == builtin_types["string"]:
+            return ExprImm(typ, None)
+        elif isinstance(typ, InternalPtrType):
+            return ExprImm(typ, None)
+        else:
+            raise NotImplementedError()
+
 
 class ExprBoolFlow(ExprInfoBase):
     """true_exits are the exits when the condition is true, false_exits are the exits when the condition is false"""
@@ -128,7 +141,6 @@ class ExprFunc(ExprInfoBase):
 
 
 class IRBuilder(MxParserVisitor):
-    """Demo code (for now)"""
     recorder: SyntaxRecorder
     stack: BuilderStack
     ir_module: IRModule
@@ -140,7 +152,10 @@ class IRBuilder(MxParserVisitor):
 
     def visitFile_Input(self, ctx: MxParser.File_InputContext):
         self.ir_module = IRModule()
-        self.visitChildren(ctx)
+        for child in ctx.children:
+            if not isinstance(child, MxParser.Variable_DefinitionContext):
+                # global variable definition will be visited in the main function
+                self.visit(child)
         return self.ir_module
 
     def visitClass_Definition(self, ctx: MxParser.Class_DefinitionContext):
@@ -165,11 +180,16 @@ class IRBuilder(MxParserVisitor):
     def visit_function_definition(self, ctx: MxParser.Function_DefinitionContext | MxParser.Class_Ctor_FunctionContext):
         function_info = self.recorder.get_typed_info(ctx, FunctionInfo)
         chain = BlockChain(function_info.name)
+        self.stack.push(chain)
         for local_var in function_info.local_vars:
             chain.add_cmd(IRAlloca(local_var.pointer_name(), local_var.type.ir_name))
+        if function_info.ir_name == "@main":
+            # visit global variable definitions
+            global_ctx: MxParser.File_InputContext = ctx.parentCtx
+            for definition in global_ctx.variable_Definition():
+                self.visitVariable_Definition(definition)
         for param_name, param_type in zip(function_info.param_ir_names, function_info.param_types):
             chain.add_cmd(IRStore(param_name + ".ptr", param_name + ".param", param_type.ir_name))
-        self.stack.push(chain)
         self.visitChildren(ctx)
         self.stack.pop()
         if chain.has_exits():
@@ -186,11 +206,18 @@ class IRBuilder(MxParserVisitor):
     def visitVariable_Definition(self, ctx: MxParser.Variable_DefinitionContext):
         chain = self.stack.top_chain()
         for init_stmt in ctx.init_Stmt():
+            variable_info = self.recorder.get_typed_info(init_stmt, VariableInfo)
             if init_stmt.expression():
                 expr: ExprInfoBase = self.visit(init_stmt.expression())
                 value = expr.to_operand(chain)
-                variable_info = self.recorder.get_typed_info(init_stmt, VariableInfo)
+            else:
+                value = ExprImm.default_value(variable_info.type)
+            is_global = variable_info.ir_name.startswith("@")
+            if (is_global and not isinstance(value, ExprImm)) or (not is_global and init_stmt.expression()):
                 chain.add_cmd(IRStore(variable_info.pointer_name(), value.llvm(), variable_info.type.ir_name))
+            if is_global:
+                value = value if isinstance(value, ExprImm) else ExprImm.default_value(variable_info.type)
+                self.ir_module.globals.append(IRGlobal(variable_info.pointer_name(), variable_info.type.ir_name, value.llvm()))
 
     def visitAtom(self, ctx: MxParser.AtomContext):
         variable_info = self.recorder.get_typed_info(ctx, VariableInfo)
@@ -596,7 +623,7 @@ if __name__ == '__main__':
     from syntax_checker import SyntaxChecker
     import sys
 
-    test_file_path = "./testcases/demo/d8.mx"
+    test_file_path = "./testcases/demo/d9.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)
