@@ -42,6 +42,9 @@ class TypeBase:
     def internal_type(self) -> "TypeBase":
         return self
 
+    def is_array(self) -> bool:
+        return False
+
 
 class FunctionType(TypeBase):
     ret_type: TypeBase
@@ -74,7 +77,7 @@ class ArrayType(TypeBase):
     dimension: int
 
     def __init__(self, element_type: TypeBase, dimension: int):
-        super().__init__(f"{element_type.name}" + "[]" * dimension)
+        super().__init__(f"{element_type.name}" + "[]" * dimension, "%.arr")
         self.element_type = element_type
         self.dimension = dimension
         self.add_member("size", FunctionType("size", BuiltinIntType(), [], "invalid"))
@@ -86,6 +89,9 @@ class ArrayType(TypeBase):
 
     def internal_type(self) -> TypeBase:
         return InternalPtrType(self)
+
+    def is_array(self) -> bool:
+        return True
 
 
 class BuiltinIntType(TypeBase):
@@ -141,7 +147,6 @@ class ClassType(TypeBase):
         return InternalPtrType(self)
 
 
-
 class InternalPtrType(TypeBase):
     """Internal type for pointers"""
     pointed_to: TypeBase
@@ -149,6 +154,10 @@ class InternalPtrType(TypeBase):
     def __init__(self, pointed_to: TypeBase = None):
         super().__init__("ptr", "ptr")
         self.pointed_to = pointed_to
+
+    def is_array(self) -> bool:
+        return self.pointed_to.is_array()
+
 
 builtin_types = {
     "int": BuiltinIntType(),
@@ -175,3 +184,9 @@ internal_functions = {
     "malloc": FunctionType("malloc", InternalPtrType(builtin_types["int"]), [builtin_types["int"]]),
     # array.size is always inlined, so we don't need to define it here
 }
+
+for elem_type in ["int", "bool", "ptr", "arr_ptr"]:
+    for dimension in [1, 2]:
+        name = f"__new_{elem_type}_{dimension}d_array__"
+        internal_functions[name] = FunctionType(name, InternalPtrType(builtin_types["null"]),
+                                                [builtin_types["int"]] * dimension)

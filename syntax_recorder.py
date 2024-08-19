@@ -22,6 +22,9 @@ class VariableInfo:
     def is_this_member(self):
         return self.ir_name.startswith("%.this.")
 
+    def arr_size_info(self):
+        return VariableInfo(builtin_types["int"], self.ir_name + ".size")
+
 
 class FunctionInfo:
     name: str

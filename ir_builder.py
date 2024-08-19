@@ -7,7 +7,7 @@ from ir_utils import IRLoad, IRStore, IRAlloca, IRBinOp, IRIcmp, BBExit, BlockCh
 from ir_renamer import renamer
 from syntax_error import MxSyntaxError, ThrowingErrorListener
 from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo
-from type import TypeBase, builtin_types, InternalPtrType, FunctionType
+from type import TypeBase, builtin_types, InternalPtrType, FunctionType, ArrayType
 
 
 class ExprInfoBase:
@@ -140,6 +140,22 @@ class ExprFunc(ExprInfoBase):
         self.this = this
 
 
+class ExprArr(ExprInfoBase):
+    ptr: ExprInfoBase
+    size: ExprInfoBase
+
+    def __init__(self, ptr: ExprInfoBase, size: ExprInfoBase):
+        super().__init__(ptr.typ, ptr.ir_name)
+        self.ptr = ptr
+        self.size = size
+
+    def to_operand(self, chain: BlockChain) -> "ExprInfoBase":
+        return self.ptr.to_operand(chain)
+
+    def llvm(self):
+        return self.ptr.llvm()
+
+
 class IRBuilder(MxParserVisitor):
     recorder: SyntaxRecorder
     stack: BuilderStack
@@ -217,7 +233,8 @@ class IRBuilder(MxParserVisitor):
                 chain.add_cmd(IRStore(variable_info.pointer_name(), value.llvm(), variable_info.type.ir_name))
             if is_global:
                 value = value if isinstance(value, ExprImm) else ExprImm.default_value(variable_info.type)
-                self.ir_module.globals.append(IRGlobal(variable_info.pointer_name(), variable_info.type.ir_name, value.llvm()))
+                self.ir_module.globals.append(
+                    IRGlobal(variable_info.pointer_name(), variable_info.type.ir_name, value.llvm()))
 
     def visitAtom(self, ctx: MxParser.AtomContext):
         variable_info = self.recorder.get_typed_info(ctx, VariableInfo)
@@ -227,7 +244,11 @@ class IRBuilder(MxParserVisitor):
             function_info = self.recorder.get_function_info(variable_info.type.ir_name)
             return ExprFunc(function_info, this_value)
         if not is_this_member:
-            return ExprPtr(variable_info.type, variable_info.pointer_name(), variable_info.value_name_hint())
+            ptr = ExprPtr(variable_info.type, variable_info.pointer_name(), variable_info.value_name_hint())
+            if variable_info.type.is_array():
+                size_info = variable_info.arr_size_info()
+                return ExprArr(ptr, ExprPtr(size_info.type, size_info.pointer_name(), size_info.value_name_hint()))
+            return ptr
         else:
             chain = self.stack.top_chain()
             class_info = self.recorder.get_class_info(self.stack.get_this_type().pointed_to.name)
@@ -235,7 +256,15 @@ class IRBuilder(MxParserVisitor):
             new_ptr_name = new_name + ".ptr"
             new_value_name = new_name + ".val"
             chain.add_cmd(IRGetElementPtr(new_ptr_name, class_info, "%this.param", member=ctx.Identifier().getText()))
-            return ExprPtr(variable_info.type, new_ptr_name, new_value_name)
+            ptr = ExprPtr(variable_info.type, new_ptr_name, new_value_name)
+            if variable_info.type.is_array():
+                size_ptr_name = new_name + ".size.ptr"
+                size_value_name = new_name + ".size.val"
+                chain.add_cmd(
+                    IRGetElementPtr(new_ptr_name, class_info, "%this.param",
+                                    member=ctx.Identifier().getText() + ".size"))
+                return ExprArr(ptr, ExprPtr(builtin_types["int"], size_ptr_name, size_value_name))
+            return ptr
 
     def visitThis(self, ctx: MxParser.ThisContext):
         return ExprValue(self.stack.get_this_type(), "%this.param")
@@ -260,10 +289,15 @@ class IRBuilder(MxParserVisitor):
         lhs: ExprInfoBase = self.visit(ctx.l)
         chain = self.stack.top_chain()
         if ctx.op.text == '=':
-            assert isinstance(lhs, ExprPtr)
+            assert isinstance(lhs, ExprPtr) or isinstance(lhs, ExprArr)
             rhs: ExprInfoBase = self.visit(ctx.r)
             rhs_value = rhs.to_operand(chain)
             chain.add_cmd(IRStore(lhs.ir_name, rhs_value.llvm(), lhs.typ.ir_name))
+            if rhs.typ.is_array():
+                # `array = null` does not need special treatment, and won't go to this branch
+                assert isinstance(rhs, ExprArr) and isinstance(lhs, ExprArr)
+                size_value = rhs.size.to_operand(chain)
+                chain.add_cmd(IRStore(lhs.size.ir_name, size_value.llvm(), lhs.size.typ.ir_name))
             return lhs
         arith_ops = {
             "+": "add",
@@ -454,17 +488,16 @@ class IRBuilder(MxParserVisitor):
     def visitNew_Type(self, ctx: MxParser.New_TypeContext):
         chain = self.stack.top_chain()
         if ctx.BasicTypes():
-            element_type = builtin_types[ctx.BasicTypes().getText()]
             if ctx.new_Index():
                 # new int[10][]
-                raise NotImplementedError("arrays are not yet supported")
+                return self.visit_new_array_expr(ctx)
             else:
                 # new int[][] { {1, 2}, {3, 4} }
-                raise NotImplementedError("arrays are not yet supported")
+                raise NotImplementedError("array literals are not yet supported")
         else:
             if ctx.new_Index():
                 # new A[10]
-                raise NotImplementedError("arrays are not yet supported")
+                return self.visit_new_array_expr(ctx)
             else:
                 # new A()
                 class_name = ctx.Identifier().getText()
@@ -475,6 +508,34 @@ class IRBuilder(MxParserVisitor):
                 if class_info.ctor:
                     chain.add_cmd(IRCall("", class_info.ctor, [new_name]))
                 return ExprValue(class_internal_type, new_name)
+
+    def visit_new_array_expr(self, ctx: MxParser.New_TypeContext):
+        chain = self.stack.top_chain()
+        array_internal_type: InternalPtrType = self.recorder.get_typed_info(ctx, VariableInfo).type
+        array_type: ArrayType = array_internal_type.pointed_to
+        assigned_sizes = self.visitNew_Index(ctx.new_Index())
+        assigned_len = len(assigned_sizes)
+        if assigned_len == array_type.dimension:
+            malloc_type = array_type.element_type.name # one of int, bool and ptr
+        else:
+            # e.g. int[2][3][]
+            malloc_type = "arr_ptr"
+        if assigned_len > 2:
+            raise NotImplementedError("arrays like int[2][3][4][] are not yet supported")
+        function_name = f"@__new_{malloc_type}_{assigned_len}d_array__"
+        function_info = self.recorder.get_function_info(function_name)
+        arr_ptr_name = renamer.get_name_from_ctx(f"%.new.{array_type.element_type.name}.arr", ctx)
+        chain.add_cmd(IRCall(arr_ptr_name, function_info, [size.llvm() for size in assigned_sizes]))
+        return ExprArr(ExprValue(array_internal_type, arr_ptr_name), assigned_sizes[0])
+
+
+    def visitNew_Index(self, ctx: MxParser.New_IndexContext):
+        chain = self.stack.top_chain()
+        ret = []
+        for expression in ctx.good:
+            size: ExprInfoBase = self.visit(expression)
+            ret.append(size.to_operand(chain))
+        return ret
 
     def visitMember(self, ctx: MxParser.MemberContext):
         chain = self.stack.top_chain()
@@ -623,7 +684,7 @@ if __name__ == '__main__':
     from syntax_checker import SyntaxChecker
     import sys
 
-    test_file_path = "./testcases/demo/d9.mx"
+    test_file_path = "./testcases/demo/d10.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)
