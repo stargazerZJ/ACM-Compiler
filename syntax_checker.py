@@ -119,6 +119,7 @@ class SyntaxChecker(MxParserVisitor):
                 self.visitArray_Literal(init_stmt.array_Literal(), typename, dimension)
             ir_prefix = "@" if self.scope.is_global() else "%"
             ir_name = renamer.get_name_from_ctx(ir_prefix + init_stmt.Identifier().getText(), init_stmt)
+            self.recorder.record(init_stmt, VariableInfo(type_.internal_type(), ir_name))
             if not self.scope.is_global():
                 self.recorder.current_function.local_vars.append(VariableInfo(type_.internal_type(), ir_name))
             self.scope.add_variable(init_stmt.Identifier().getText(), type_, ctx, ir_name)

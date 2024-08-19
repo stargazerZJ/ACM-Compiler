@@ -150,7 +150,10 @@ class IRBuilder(MxParserVisitor):
         class_internal_type = self.recorder.get_typed_info(ctx, VariableInfo).type  # internal pointer type
         assert isinstance(class_internal_type, InternalPtrType)
         self.stack.enter_class_scope(class_internal_type)
-        self.visitChildren(ctx)
+        if ctx.class_Ctor_Function():
+            self.visitClass_Ctor_Function(ctx.class_Ctor_Function()[0])
+        for function in ctx.function_Definition():
+            self.visitFunction_Definition(function)
         self.stack.exit_class_scope()
 
     def visitFunction_Definition(self, ctx: MxParser.Function_DefinitionContext):
@@ -179,6 +182,15 @@ class IRBuilder(MxParserVisitor):
                     # mark the exits of the function as unreachable
                     chain.jump()
         self.ir_module.functions.append(IRFunction(function_info, chain))
+
+    def visitVariable_Definition(self, ctx: MxParser.Variable_DefinitionContext):
+        chain = self.stack.top_chain()
+        for init_stmt in ctx.init_Stmt():
+            if init_stmt.expression():
+                expr: ExprInfoBase = self.visit(init_stmt.expression())
+                value = expr.to_operand(chain)
+                variable_info = self.recorder.get_typed_info(init_stmt, VariableInfo)
+                chain.add_cmd(IRStore(variable_info.pointer_name(), value.llvm(), variable_info.type.ir_name))
 
     def visitAtom(self, ctx: MxParser.AtomContext):
         variable_info = self.recorder.get_typed_info(ctx, VariableInfo)
