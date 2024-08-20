@@ -329,6 +329,8 @@ class SyntaxChecker(MxParserVisitor):
         if ctx.Number():
             return builtin_types["int"], False
         if ctx.Cstring():
+            ir_name = renamer.get_name_from_ctx("@.str", ctx)
+            self.recorder.record(ctx, VariableInfo(builtin_types["string"].internal_type(), ir_name))
             return builtin_types["string"], False
         if ctx.True_() or ctx.False_():
             return builtin_types["bool"], False

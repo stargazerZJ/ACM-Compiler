@@ -45,6 +45,9 @@ class TypeBase:
     def is_array(self) -> bool:
         return False
 
+    def is_string(self) -> bool:
+        return False
+
 
 class FunctionType(TypeBase):
     ret_type: TypeBase
@@ -118,17 +121,20 @@ class BuiltinVoidType(TypeBase):
 class BuiltinStringType(TypeBase):
     def __init__(self):
         super().__init__("string")
-        self.add_member("length", FunctionType("length", BuiltinIntType(), [], "@string.length"))
+        self.add_member("length", FunctionType("length", BuiltinIntType(), [], "@string_length"))
         self.add_member("substring",
-                        FunctionType("substring", self, [BuiltinIntType(), BuiltinIntType()], "@string.substring"))
-        self.add_member("parseInt", FunctionType("parseInt", BuiltinIntType(), [], "@string.parseInt"))
-        self.add_member("ord", FunctionType("ord", BuiltinIntType(), [BuiltinIntType()], "@string.ord"))
+                        FunctionType("substring", self, [BuiltinIntType(), BuiltinIntType()], "@string_substring"))
+        self.add_member("parseInt", FunctionType("parseInt", BuiltinIntType(), [], "@string_parseInt"))
+        self.add_member("ord", FunctionType("ord", BuiltinIntType(), [BuiltinIntType()], "@string_ord"))
 
     def can_be_null(self, ctx: ParserRuleContext = None) -> bool:
         return False
 
     def internal_type(self) -> TypeBase:
         return InternalPtrType(self)
+
+    def is_string(self) -> bool:
+        return True
 
 
 class BuiltinNullType(TypeBase):
@@ -158,6 +164,9 @@ class InternalPtrType(TypeBase):
     def is_array(self) -> bool:
         return self.pointed_to.is_array()
 
+    def is_string(self) -> bool:
+        return self.pointed_to.is_string()
+
 
 builtin_types = {
     "int": BuiltinIntType(),
@@ -177,10 +186,14 @@ builtin_functions = {
 }
 
 internal_functions = {
-    "string.length": builtin_types["string"].members["length"],
-    "string.substring": builtin_types["string"].members["substring"],
-    "string.parseInt": builtin_types["string"].members["parseInt"],
-    "string.ord": builtin_types["string"].members["ord"],
+    "string_length": builtin_types["string"].members["length"],
+    "string_substring": builtin_types["string"].members["substring"],
+    "string_parseInt": builtin_types["string"].members["parseInt"],
+    "string_ord": builtin_types["string"].members["ord"],
+    "string_add": FunctionType("string_add", builtin_types["string"].internal_type(),
+                               [builtin_types["string"].internal_type(), builtin_types["string"].internal_type()]),
+    "strcmp": FunctionType("strcmp", builtin_types["int"],
+                               [builtin_types["string"].internal_type(), builtin_types["string"].internal_type()]),
     "malloc": FunctionType("malloc", InternalPtrType(builtin_types["int"]), [builtin_types["int"]]),
     # array.size is always inlined, so we don't need to define it here
 }

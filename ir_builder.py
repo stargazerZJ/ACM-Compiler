@@ -3,11 +3,11 @@ import antlr4
 from antlr_generated.MxParser import MxParser
 from antlr_generated.MxParserVisitor import MxParserVisitor
 from ir_utils import IRLoad, IRStore, IRAlloca, IRBinOp, IRIcmp, BBExit, BlockChain, BuilderStack, IRModule, \
-    IRFunction, IRCall, IRClass, IRMalloc, IRGetElementPtr, IRGlobal
+    IRFunction, IRCall, IRClass, IRMalloc, IRGetElementPtr, IRGlobal, IRStr
 from ir_renamer import renamer
 from syntax_error import MxSyntaxError, ThrowingErrorListener
 from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo, internal_array_info
-from type import TypeBase, builtin_types, InternalPtrType, FunctionType, ArrayType, dimension
+from type import TypeBase, builtin_types, InternalPtrType, FunctionType, ArrayType, internal_functions
 
 
 class ExprInfoBase:
@@ -291,6 +291,11 @@ class IRBuilder(MxParserVisitor):
             return ExprImm(builtin_types["bool"], True)
         elif ctx.False_():
             return ExprImm(builtin_types["bool"], False)
+        elif ctx.Cstring():
+            string_info = self.recorder.get_typed_info(ctx, VariableInfo)
+            string = ctx.getText()[1:-1]
+            self.ir_module.strings.append(IRStr(string_info.ir_name, string))
+            return ExprValue(string_info.type, string_info.ir_name)
         else:
             # Null
             return ExprImm(builtin_types["null"], None)
@@ -327,17 +332,21 @@ class IRBuilder(MxParserVisitor):
             "^": "xor"
         }
         if ctx.op.text in arith_ops:
+            lhs_value = lhs.to_operand(chain)
+            rhs: ExprInfoBase = self.visit(ctx.r)
+            rhs_value = rhs.to_operand(chain)
             if lhs.typ == builtin_types["int"]:
                 op_ir_name = arith_ops[ctx.op.text]
-                lhs_value = lhs.to_operand(chain)
-                rhs: ExprInfoBase = self.visit(ctx.r)
-                rhs_value = rhs.to_operand(chain)
                 new_name = renamer.get_name_from_ctx(f"%.{op_ir_name}", ctx)
                 chain.add_cmd(IRBinOp(new_name, op_ir_name, lhs_value.llvm(), rhs_value.llvm(), lhs.typ.ir_name))
                 return ExprValue(lhs.typ, new_name)
             else:
                 # string concatenation
-                raise NotImplementedError("String concatenation is not yet supported")
+                str_add_info = internal_functions["string_add"]
+                new_name = renamer.get_name_from_ctx(f"%.str.add", ctx)
+                chain.add_cmd(IRCall(new_name, str_add_info, [lhs_value.llvm(), rhs_value.llvm()]))
+                return ExprValue(builtin_types["string"].internal_type(), new_name)
+
         compare_ops = {
             "==": "eq",
             "!=": "ne",
@@ -347,16 +356,20 @@ class IRBuilder(MxParserVisitor):
             ">=": "sge"
         }
         if ctx.op.text in compare_ops:
-            if lhs.typ == builtin_types["int"] or lhs.typ == builtin_types["bool"] or lhs.typ == InternalPtrType():
-                op_ir_name = compare_ops[ctx.op.text]
-                lhs_value = lhs.to_operand(chain)
-                rhs: ExprInfoBase = self.visit(ctx.r)
-                rhs_value = rhs.to_operand(chain)
+            op_ir_name = compare_ops[ctx.op.text]
+            lhs_value = lhs.to_operand(chain)
+            rhs: ExprInfoBase = self.visit(ctx.r)
+            rhs_value = rhs.to_operand(chain)
+            if not lhs.typ.is_string():
                 new_name = renamer.get_name_from_ctx(f"%.{op_ir_name}", ctx)
                 chain.add_cmd(IRIcmp(new_name, op_ir_name, lhs.typ.ir_name, lhs_value.llvm(), rhs_value.llvm()))
-                return ExprValue(builtin_types["bool"], new_name)
-            elif lhs.typ == builtin_types["string"]:
-                raise NotImplementedError("String comparison is not yet supported")
+            else:
+                new_name = renamer.get_name_from_ctx(f"%.str.{op_ir_name}", ctx)
+                call_name = new_name + ".call"
+                strcmp_info = internal_functions["strcmp"]
+                chain.add_cmd(IRCall(call_name, strcmp_info, [lhs_value.llvm(), rhs_value.llvm()]))
+                chain.add_cmd(IRIcmp(new_name, op_ir_name, strcmp_info.ret_type.ir_name, call_name, "0"))
+            return ExprValue(builtin_types["bool"], new_name)
 
     def visit_logic_expr(self, ctx: MxParser.BinaryContext):
         """&& and ||"""
@@ -756,7 +769,7 @@ if __name__ == '__main__':
     from syntax_checker import SyntaxChecker
     import sys
 
-    test_file_path = "./testcases/demo/d10.mx"
+    test_file_path = "./testcases/demo/d11.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)

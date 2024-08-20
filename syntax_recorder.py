@@ -91,6 +91,12 @@ internal_array_info.members = {".data": VariableInfo(InternalPtrType(builtin_typ
 internal_array_info.member_idx = {".data": 0, ".size": 1}
 internal_array_info.size = 8
 
+string_info: ClassInfo = ClassInfo("%string")
+string_info.members = {"length": builtin_function_infos["@string_length"],
+                       "substring": builtin_function_infos["@string_substring"],
+                       "parseInt": builtin_function_infos["@string_parseInt"],
+                       "ord": builtin_function_infos["@string_ord"] }
+
 T = TypeVar('T')
 
 
@@ -107,7 +113,7 @@ class SyntaxRecorder:
         self.global_scope = global_scope
         self.function_info = builtin_function_infos.copy()
         self.current_function = None
-        self.class_info = {".arr": internal_array_info}
+        self.class_info = {".arr": internal_array_info, "string": string_info}
 
     def record(self, ctx: ParserRuleContext, info: Any):
         assert (ctx.start.line, ctx.start.column) not in self.info

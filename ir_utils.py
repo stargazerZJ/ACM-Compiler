@@ -1,4 +1,5 @@
 # Utility types and functions for LLVM 15 IR generation
+from scipy.constants import value
 
 from ir_renamer import renamer
 from syntax_recorder import FunctionInfo, ClassInfo, builtin_function_infos, internal_array_info, VariableInfo
@@ -201,13 +202,32 @@ class IRGetElementPtr(IRCmdBase):
 
 
 class IRGlobal:
-    def __init__(self, name: str, typ: str, value: str ):
+    def __init__(self, name: str, typ: str, value: str):
         self.name = name
         self.typ = typ
         self.value = value
 
     def llvm(self):
         return f"{self.name} = global {self.typ} {self.value}"
+
+
+class IRStr:
+    """String Literal"""
+    name: str
+    value: str
+    length: int
+
+    def __init__(self, name: str, value: str):
+        self.name = name
+        value = value.replace("\\\\", "\\").replace("\\n", "\n").replace("\\\"", '"')
+        self.value = value + "\0"
+        self.length = len(value)
+
+    def llvm(self):
+        # only 3 characters need to be escaped in the Mx* language: \n, \ and "
+        value_ir = (self.value.replace("\\", "\\5C").replace("\n", "\\0A")
+                    .replace("\"", "\\22").replace("\0", "\\00"))
+        return f"{self.name} = private unnamed_addr constant [{self.length + 1} x i8] c\"{value_ir}\""
 
 
 class BlockChain:
@@ -546,14 +566,17 @@ class IRModule:
     functions: list[IRFunction]
     classes: list[IRClass]
     globals: list[IRGlobal]
+    strings: list[IRStr]
 
     def __init__(self):
         self.functions = [IRFunction(func) for func in builtin_function_infos.values()]
         self.classes = [IRClass(internal_array_info)]
         self.globals = []
+        self.strings = []
 
     def llvm(self):
         functions = "\n".join(func.llvm() for func in self.functions)
         classes = "\n".join(cls.llvm() for cls in self.classes)
         global_vars = "\n".join(var.llvm() for var in self.globals)
-        return f"{functions}\n{classes}\n{global_vars}"
+        strings = "\n".join(string.llvm() for string in self.strings)
+        return f"{functions}\n{classes}\n{global_vars}\n{strings}"
