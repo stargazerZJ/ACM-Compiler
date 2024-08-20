@@ -176,13 +176,13 @@ builtin_types = {
     "null": BuiltinNullType(),  # a special type for null literal
 }
 builtin_functions = {
-    "print": FunctionType("print", builtin_types["void"], [builtin_types["string"]]),
-    "println": FunctionType("println", builtin_types["void"], [builtin_types["string"]]),
+    "print": FunctionType("print", builtin_types["void"], [builtin_types["string"].internal_type()]),
+    "println": FunctionType("println", builtin_types["void"], [builtin_types["string"].internal_type()]),
     "printInt": FunctionType("printInt", builtin_types["void"], [builtin_types["int"]]),
     "printlnInt": FunctionType("printlnInt", builtin_types["void"], [builtin_types["int"]]),
-    "getString": FunctionType("getString", builtin_types["string"], []),
+    "getString": FunctionType("getString", builtin_types["string"].internal_type(), []),
     "getInt": FunctionType("getInt", builtin_types["int"], []),
-    "toString": FunctionType("toString", builtin_types["string"], [builtin_types["int"]]),
+    "toString": FunctionType("toString", builtin_types["string"].internal_type(), [builtin_types["int"]]),
 }
 
 internal_functions = {
