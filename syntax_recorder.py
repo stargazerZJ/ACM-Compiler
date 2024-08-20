@@ -85,9 +85,10 @@ class ClassInfo:
 
 
 internal_array_info: ClassInfo = ClassInfo("%.arr")  # only used in multidimensional arrays
-internal_array_info.members = {"data": VariableInfo(InternalPtrType(builtin_types["null"]), "%.arr.data"),
-                               "size": VariableInfo(builtin_types["int"], "%.arr.size")}
-internal_array_info.member_idx = {"data": 0, "size": 1}
+internal_array_info.members = {".data": VariableInfo(InternalPtrType(builtin_types["null"]), "%.arr..data"),
+                               ".size": VariableInfo(builtin_types["int"], "%.arr..size"),
+                               "size": FunctionInfo("size", "%.arr.size", builtin_types["int"], [], [])}
+internal_array_info.member_idx = {".data": 0, ".size": 1}
 internal_array_info.size = 8
 
 T = TypeVar('T')
@@ -106,7 +107,7 @@ class SyntaxRecorder:
         self.global_scope = global_scope
         self.function_info = builtin_function_infos.copy()
         self.current_function = None
-        self.class_info = {"%.arr": internal_array_info}
+        self.class_info = {".arr": internal_array_info}
 
     def record(self, ctx: ParserRuleContext, info: Any):
         assert (ctx.start.line, ctx.start.column) not in self.info
@@ -132,5 +133,6 @@ class SyntaxRecorder:
     def get_function_info(self, ir_name: str) -> FunctionInfo:
         return self.function_info[ir_name]
 
-    def get_class_info(self, ir_name: str) -> ClassInfo:
-        return self.class_info[ir_name]
+    def get_class_info(self, name: str) -> ClassInfo:
+        if name.endswith("[]"): return internal_array_info
+        return self.class_info[name]

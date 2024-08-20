@@ -434,6 +434,7 @@ class BlockChain:
 class BuilderStack:
     layers: list["Layer"]
     this_type: InternalPtrType | None
+    current_function: FunctionInfo | None
 
     class Layer:
         chain: BlockChain
@@ -494,6 +495,15 @@ class BuilderStack:
 
     def get_this_type(self):
         return self.this_type
+
+    def enter_function(self, function: FunctionInfo):
+        self.current_function = function
+
+    def exit_function(self):
+        self.current_function = None
+
+    def get_current_function(self):
+        return self.current_function
 
 
 class IRFunction:

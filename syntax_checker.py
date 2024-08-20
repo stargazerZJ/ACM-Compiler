@@ -83,8 +83,11 @@ class SyntaxChecker(MxParserVisitor):
             for init_stmt in var_ctx.init_Stmt():
                 var_name = init_stmt.Identifier().getText()
                 class_type.add_member(var_name, var_type)
-                value_info = VariableInfo(var_type.internal_type(), var_name)
-                class_info.add_member(var_name, value_info)
+                var_info = VariableInfo(var_type.internal_type(), var_name)
+                class_info.add_member(var_name, var_info)
+                if var_type.is_array():
+                    size_info = var_info.arr_size_info()
+                    class_info.add_member(var_name + ".size", size_info)
 
         # Check constructor if exists
         if ctx.class_Ctor_Function():
@@ -238,8 +241,7 @@ class SyntaxChecker(MxParserVisitor):
                 # new A[10]
                 dimensions = self.visitNew_Index(ctx.new_Index())
                 array_type = ArrayType(class_type, dimensions)
-                self.recorder.record(ctx, VariableInfo(
-                    ArrayType(class_type.internal_type(), dimensions).internal_type(), ""))
+                self.recorder.record(ctx, VariableInfo(array_type.internal_type(), ""))
                 return array_type, False
             else:
                 # new A()
@@ -370,7 +372,13 @@ class SyntaxChecker(MxParserVisitor):
                 ir_name = renamer.get_name_from_ctx("%" + argument.Identifier().getText(), argument)
                 function_info.param_types.append(arg_type.internal_type())
                 function_info.param_ir_names.append(ir_name)
-                function_info.local_vars.append(VariableInfo(arg_type.internal_type(), ir_name))
+                arg_info = VariableInfo(arg_type.internal_type(), ir_name)
+                function_info.local_vars.append(arg_info)
+                if arg_type.is_array():
+                    arg_size_info = arg_info.arr_size_info()
+                    function_info.param_types.append(arg_size_info.type)
+                    function_info.param_ir_names.append(arg_size_info.ir_name)
+                    function_info.local_vars.append(arg_size_info)
                 self.scope.add_variable(argument.Identifier().getText(), arg_type, argument, ir_name)
         self.recorder.enter_function(function_info, ctx)
         self.visitBlock_Stmt(ctx.block_Stmt())

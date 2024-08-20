@@ -88,7 +88,7 @@ class ArrayType(TypeBase):
         return ArrayType(self.element_type, self.dimension - 1)
 
     def internal_type(self) -> TypeBase:
-        return InternalPtrType(self)
+        return InternalPtrType(ArrayType(self.element_type.internal_type(), self.dimension))
 
     def is_array(self) -> bool:
         return True
