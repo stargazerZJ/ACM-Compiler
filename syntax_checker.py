@@ -343,8 +343,6 @@ class SyntaxChecker(MxParserVisitor):
     def visitAtom(self, ctx: MxParser.AtomContext):
         # Note: assigning to a function is undefined behavior
         type_, name = self.scope.get_variable(ctx.Identifier().getText(), ctx)
-        if name.startswith("%.this."):
-            name = renamer.get_name_from_ctx(name, ctx)
         self.recorder.record(ctx, VariableInfo(type_.internal_type(), name))
         return type_, True
 
