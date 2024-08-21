@@ -6,7 +6,7 @@ from ir_utils import IRLoad, IRStore, IRAlloca, IRBinOp, IRIcmp, BBExit, BlockCh
     IRFunction, IRCall, IRClass, IRMalloc, IRGetElementPtr, IRGlobal, IRStr
 from ir_renamer import renamer
 from syntax_error import MxSyntaxError, ThrowingErrorListener
-from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo, internal_array_info
+from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo, internal_array_info, builtin_function_infos
 from type import TypeBase, builtin_types, InternalPtrType, FunctionType, ArrayType, internal_functions
 
 
@@ -342,7 +342,7 @@ class IRBuilder(MxParserVisitor):
                 return ExprValue(lhs.typ, new_name)
             else:
                 # string concatenation
-                str_add_info = internal_functions["string_add"]
+                str_add_info = builtin_function_infos["@string_add"]
                 new_name = renamer.get_name_from_ctx(f"%.str.add", ctx)
                 chain.add_cmd(IRCall(new_name, str_add_info, [lhs_value.llvm(), rhs_value.llvm()]))
                 return ExprValue(builtin_types["string"].internal_type(), new_name)
@@ -366,7 +366,7 @@ class IRBuilder(MxParserVisitor):
             else:
                 new_name = renamer.get_name_from_ctx(f"%.str.{op_ir_name}", ctx)
                 call_name = new_name + ".call"
-                strcmp_info = internal_functions["strcmp"]
+                strcmp_info = builtin_function_infos["@strcmp"]
                 chain.add_cmd(IRCall(call_name, strcmp_info, [lhs_value.llvm(), rhs_value.llvm()]))
                 chain.add_cmd(IRIcmp(new_name, op_ir_name, strcmp_info.ret_type.ir_name, call_name, "0"))
             return ExprValue(builtin_types["bool"], new_name)
