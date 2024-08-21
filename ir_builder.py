@@ -249,7 +249,7 @@ class IRBuilder(MxParserVisitor):
                 if variable_info.type.is_array():
                     size_info = variable_info.arr_size_info()
                     self.ir_module.globals.append(
-                        IRGlobal(size_info.pointer_name(), size_info.ir_name, size_value.llvm()))
+                        IRGlobal(size_info.pointer_name(), size_info.type.ir_name, size_value.llvm()))
 
     def visitAtom(self, ctx: MxParser.AtomContext):
         variable_info = self.recorder.get_typed_info(ctx, VariableInfo)
