@@ -29,7 +29,7 @@ if [ $# -eq 3 ]; then
     BUILTIN=$3
 fi
 
-source $(dirname $0)/utils.bash
+source "$(dirname "$0")"/utils.bash
 
 COMPILER=$1
 CODEGEN_DIR=$2
@@ -37,8 +37,8 @@ if [ ${CODEGEN_DIR:0:1} != "/" ]; then
     CODEGEN_DIR="$CODEGEN_DIR/"
 fi
 
-if [ ! -x ${CODEGEN_DIR}scripts/test_llvm_ir.bash ]; then
-    echo "Error: ${CODEGEN_DIR}scripts/test_llvm_ir.bash does not exist or is not executable." >&2
+if [ ! -x "$(dirname "$0")"/test_llvm_ir.bash ]; then
+    echo "Error: "$(dirname "$0")"/test_llvm_ir.bash does not exist or is not executable." >&2
     exit 1
 elif [ ! -f ${CODEGEN_DIR}judgelist.txt ]; then
     echo "Error: ${CODEGEN_DIR}judgelist.txt not found." >&2
@@ -58,7 +58,7 @@ judge_one_testcase() {
     local TESTDIR="$TEMPDIR/$2"
     mkdir -p $TESTDIR
     cp $1 $TESTDIR
-    ${CODEGEN_DIR}scripts/test_llvm_ir.bash "$COMPILER" $1 $BUILTIN $TESTDIR > /dev/null 2>&1
+    "$(dirname "$0")"/test_llvm_ir.bash "$COMPILER" $1 $BUILTIN $TESTDIR > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         FAILED_TESTCASE="$2"
         print_red_msg "Fail to pass testcase: '$1'."
