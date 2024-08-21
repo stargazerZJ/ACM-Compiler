@@ -1,5 +1,4 @@
 # Utility types and functions for LLVM 15 IR generation
-from scipy.constants import value
 
 from ir_renamer import renamer
 from syntax_recorder import FunctionInfo, ClassInfo, builtin_function_infos, internal_array_info, VariableInfo
@@ -371,7 +370,9 @@ class BlockChain:
 
                 if should_invert:
                     invert_cond = renamer.get_name(cond + ".inv")
-                    block.add_cmd(IRBinOp(invert_cond, "xor", cond, "true", "i1"))
+                    cmd = IRBinOp(invert_cond, "xor", cond, "true", "i1")
+                    predecessor_block = jump_exit.block
+                    predecessor_block.cmds.insert(-1, cmd)
                     phi_values.append((jump_exit, invert_cond))
                 else:
                     phi_values.append((jump_exit, cond))
