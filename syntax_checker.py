@@ -1,4 +1,6 @@
 import antlr4
+import sys
+sys.setrecursionlimit(10000)
 
 from antlr_generated.MxParser import MxParser
 from antlr_generated.MxParserVisitor import MxParserVisitor
