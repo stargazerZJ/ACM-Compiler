@@ -769,9 +769,9 @@ if __name__ == '__main__':
     from syntax_checker import SyntaxChecker
     import sys
 
-    test_file_path = "./testcases/demo/d11.mx"
-    input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
-    # input_stream = antlr4.StdinStream(encoding='utf-8')
+    # test_file_path = "./testcases/demo/d11.mx"
+    # input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
+    input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)
     parser = MxParser(antlr4.CommonTokenStream(lexer))
 

@@ -3,6 +3,7 @@ testcases-old/
 antlr_generated/
 clang_generated/
 antlr/*.tokens
+tmp/
 
 .idea/
 
