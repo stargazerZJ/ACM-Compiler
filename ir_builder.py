@@ -505,6 +505,7 @@ class IRBuilder(MxParserVisitor):
             args.append(this_value.llvm())
         if ctx.expr_List():
             param_type_iter = iter(info.param_types)
+            if info.is_member: next(param_type_iter)
             for expr in ctx.expr_List().expression():
                 arg: ExprInfoBase = self.visit(expr)
                 arg_value = arg.to_operand(chain)
