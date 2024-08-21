@@ -111,7 +111,7 @@ void *__new_arr_ptr_1d_array__(int size) {
 
 void *__new_2d_array__(int size, int size2, void *(*__new_1d_array__)(int)) {
     size_t *array = __new_arr_ptr_1d_array__(size);
-    for (int i = 0; i < size; i += 2) {
+    for (int i = 0; i < size * 2; i += 2) {
         array[i] = (size_t)__new_1d_array__(size2); // actual type is void *
         array[i + 1] = size2;   // length
     }
