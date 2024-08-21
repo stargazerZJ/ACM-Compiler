@@ -276,7 +276,7 @@ class IRBuilder(MxParserVisitor):
                 size_ptr_name = new_name + ".size.ptr"
                 size_value_name = new_name + ".size.val"
                 chain.add_cmd(
-                    IRGetElementPtr(new_ptr_name, class_info, "%this.param",
+                    IRGetElementPtr(size_ptr_name, class_info, "%this.param",
                                     member=ctx.Identifier().getText() + ".size"))
                 return ExprArr(ptr, ExprPtr(builtin_types["int"], size_ptr_name, size_value_name))
             return ptr
