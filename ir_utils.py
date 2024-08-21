@@ -573,8 +573,8 @@ class IRModule:
         self.strings = []
 
     def llvm(self):
-        functions = "\n".join(func.llvm() for func in self.functions)
         classes = "\n".join(cls.llvm() for cls in self.classes)
         global_vars = "\n".join(var.llvm() for var in self.globals)
         strings = "\n".join(string.llvm() for string in self.strings)
-        return f"{functions}\n{classes}\n{global_vars}\n{strings}"
+        functions = "\n".join(func.llvm() for func in self.functions)
+        return f"{classes}\n{global_vars}\n{strings}\n{functions}"
