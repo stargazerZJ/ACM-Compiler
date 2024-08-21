@@ -1,7 +1,7 @@
 import itertools
 from typing import Any, Dict, Tuple, Type, TypeVar
 from antlr4 import ParserRuleContext
-from type import TypeBase, InternalPtrType, builtin_types, builtin_functions, internal_functions
+from type import TypeBase, InternalPtrType, builtin_types, builtin_functions, internal_functions, FunctionType
 from scope import GlobalScope
 
 
@@ -46,10 +46,23 @@ class FunctionInfo:
         self.local_vars = []
         self.is_member = is_member
 
+    @staticmethod
+    def from_function_type(func: FunctionType):
+        ret_type = func.ret_type.internal_type()
+        if func.ir_name.startswith("@string_") and func.name != "string_add":
+            param_types = [builtin_types["string"].internal_type()]
+            is_member = True
+        else:
+            param_types = []
+            is_member = False
+        param_types += [typ.internal_type() for typ in func.param_types]
+        param_ir_names = [""] * len(func.param_types)
+        return FunctionInfo(func.name, func.ir_name, ret_type=ret_type, param_types=param_types, param_ir_names=param_ir_names,
+                            is_member=is_member)
+
 
 builtin_function_infos: Dict[str, FunctionInfo] = {
-    func.ir_name: FunctionInfo(name, func.ir_name, func.ret_type.internal_type(),
-                               [typ.internal_type() for typ in func.param_types], [""] * len(func.param_types))
+    func.ir_name: FunctionInfo.from_function_type(func)
     for name, func in itertools.chain(builtin_functions.items(), internal_functions.items())
 }
 
