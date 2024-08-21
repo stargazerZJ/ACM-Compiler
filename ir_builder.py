@@ -248,6 +248,7 @@ class IRBuilder(MxParserVisitor):
                     IRGlobal(variable_info.pointer_name(), variable_info.type.ir_name, value.llvm()))
                 if variable_info.type.is_array():
                     size_info = variable_info.arr_size_info()
+                    size_value = size_value if isinstance(size_value, ExprImm) else ExprImm(builtin_types["int"], 0)
                     self.ir_module.globals.append(
                         IRGlobal(size_info.pointer_name(), size_info.type.ir_name, size_value.llvm()))
 
