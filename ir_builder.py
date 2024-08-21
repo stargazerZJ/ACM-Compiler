@@ -241,7 +241,7 @@ class IRBuilder(MxParserVisitor):
                     size_value = expr.size.to_operand(chain)
                     size_info = variable_info.arr_size_info()
                     if not (is_global and isinstance(size_value, ExprImm)):
-                        chain.add_cmd(IRStore(size_info.ir_name, size_value.llvm(), size_info.type.ir_name))
+                        chain.add_cmd(IRStore(size_info.pointer_name(), size_value.llvm(), size_info.type.ir_name))
             if is_global:
                 value = value if isinstance(value, ExprImm) else ExprImm.default_value(variable_info.type)
                 self.ir_module.globals.append(
