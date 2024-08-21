@@ -553,10 +553,7 @@ class IRClass(ClassInfo):
 
     def llvm(self):
         ret = f"{self.ir_name} = type {{"
-        for name, member in self.members.items():
-            if isinstance(member, VariableInfo):
-                ret += f"{member.type.ir_name}, "
-        ret = ret[:-2]
+        ret += ", ".join(member.type.ir_name for member in self.members.values() if isinstance(member, VariableInfo))
         ret += "}"
         return ret
 
