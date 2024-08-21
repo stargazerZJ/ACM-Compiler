@@ -340,6 +340,8 @@ class SyntaxChecker(MxParserVisitor):
     def visitAtom(self, ctx: MxParser.AtomContext):
         # Note: assigning to a function is undefined behavior
         type_, name = self.scope.get_variable(ctx.Identifier().getText(), ctx)
+        if name.startswith("%.this."):
+            name = renamer.get_name_from_ctx(name, ctx)
         self.recorder.record(ctx, VariableInfo(type_.internal_type(), name))
         return type_, True
 
@@ -366,6 +368,7 @@ class SyntaxChecker(MxParserVisitor):
         if self.scope.is_in_class():
             function_info.param_types = [self.scope.get_this_type().internal_type()]
             function_info.param_ir_names = ["%this"]
+            function_info.local_vars.append(VariableInfo(self.scope.get_this_type().internal_type(), "%this"))
         self.scope.set_return_type(ret_type)
         self.scope.push_scope()
         if ctx.function_Param_List():
@@ -395,6 +398,7 @@ class SyntaxChecker(MxParserVisitor):
         ctor_info = FunctionInfo(class_name, ctor_ir_name, builtin_types["void"],
                                  [self.scope.get_this_type().internal_type()],
                                  ["%this"], True)
+        ctor_info.local_vars.append(VariableInfo(self.scope.get_this_type().internal_type(), "%this"))
         class_info.ctor = ctor_info
         self.scope.set_return_type(builtin_types["void"])  # 'return ;' is allowed in constructor
         self.scope.push_scope()
