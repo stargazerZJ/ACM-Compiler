@@ -504,15 +504,19 @@ class IRBuilder(MxParserVisitor):
             this_value = this.to_operand(chain)
             args.append(this_value.llvm())
         if ctx.expr_List():
-            for param_type, expr in zip(info.param_types, ctx.expr_List().expression()):
+            param_type_iter = iter(info.param_types)
+            for expr in ctx.expr_List().expression():
                 arg: ExprInfoBase = self.visit(expr)
                 arg_value = arg.to_operand(chain)
                 args.append(arg_value.llvm())
+                param_type = next(param_type_iter)
                 if arg.typ.is_array():
                     arg_size_value = arg.size.to_operand(chain)
                     args.append(arg_size_value.llvm())
+                    next(param_type_iter)
                 elif param_type.is_array():
                     args.append("0")
+                    next(param_type_iter)
         if info.ret_type == builtin_types["void"]:
             chain.add_cmd(IRCall("", info, args))
             return ExprValue(builtin_types["void"], "")
