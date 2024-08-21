@@ -2,7 +2,7 @@
 
 from ir_renamer import renamer
 from syntax_recorder import FunctionInfo, ClassInfo, builtin_function_infos, internal_array_info, VariableInfo
-from type import FunctionType, TypeBase, InternalPtrType
+from type import TypeBase, InternalPtrType
 
 
 class IRCmdBase:

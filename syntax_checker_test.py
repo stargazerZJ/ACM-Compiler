@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 import argparse
-import os
 from pathlib import Path
+
+import antlr4
+
+from antlr_generated.MxLexer import MxLexer
+from antlr_generated.MxParser import MxParser
 from syntax_checker import SyntaxChecker
 from syntax_error import MxSyntaxError, ThrowingErrorListener
-import antlr4
-from antlr_generated.MxParser import MxParser
-from antlr_generated.MxLexer import MxLexer
+
 
 class SyntaxTester:
     def __init__(self, testcases_dir='testcases/sema', verbose=False, continue_on_fail=False):

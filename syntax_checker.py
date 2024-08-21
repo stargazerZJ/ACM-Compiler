@@ -1,11 +1,12 @@
 import antlr4
-from antlr_generated.MxParserVisitor import MxParserVisitor
+
 from antlr_generated.MxParser import MxParser
-from type import TypeBase, FunctionType, ArrayType, ClassType, builtin_functions, builtin_types
+from antlr_generated.MxParserVisitor import MxParserVisitor
+from ir_renamer import renamer
 from scope import Scope, GlobalScope, ScopeBase
 from syntax_error import MxSyntaxError, ThrowingErrorListener
-from ir_renamer import renamer
 from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo, ClassInfo
+from type import TypeBase, FunctionType, ArrayType, builtin_types
 
 
 class SyntaxChecker(MxParserVisitor):
