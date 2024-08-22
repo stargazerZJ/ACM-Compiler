@@ -4,6 +4,7 @@ antlr_generated/
 clang_generated/
 antlr/*.tokens
 tmp/
+dominator/build*
 
 .idea/
 
