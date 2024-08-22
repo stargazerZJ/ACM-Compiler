@@ -4,6 +4,7 @@
 
 #pragma once
 #include <vector>
+#include <bit>
 #include <cstring>
 #include <cstdint>
 #include <iostream>
@@ -11,14 +12,13 @@
 #include <ranges>
 #include <cassert>
 
-using std::vector, std::views::iota;
 struct dynamic_bitset {
   using ull = unsigned long long;
   static constexpr size_t L = 64, LB = 6;
   size_t s = 0;
-  vector<ull> v;
+  std::vector<ull> v;
 
-  size_t VSize() const {
+  [[nodiscard]] size_t VSize() const {
     return (s + L - 1) >> LB;
   }
 
@@ -30,41 +30,29 @@ struct dynamic_bitset {
     }
   }
 
-  // 默认构造函数，默认长度为 0
   dynamic_bitset() = default;
 
-  // 除非手动管理内存，否则 = default 即可
   ~dynamic_bitset() = default;
 
-  /**
-   * @brief 拷贝构造函数
-   * 如果你用 std::vector 来实现，那么这个函数可以直接 = default
-   * 如果你手动管理内存，则你可能需要自己实现这个函数
-   */
   dynamic_bitset(const dynamic_bitset &) = default;
 
-  /**
-   * @brief 拷贝赋值运算符
-   * 如果你用 std::vector 来实现，那么这个函数可以直接 = default
-   * 如果你手动管理内存，则你可能需要自己实现这个函数
-   */
   dynamic_bitset &operator=(const dynamic_bitset &) = default;
 
-  // 初始化 bitset 的大小为 n ，且全为 0.
+  // Initializes the bitset with size n, all bits set to 0.
   explicit dynamic_bitset(std::size_t n) : s(n), v(VSize()) {}
 
   /**
-   * @brief 从一个字符串初始化 bitset。
-   * 保证字符串合法，且最低位在最前面。
-   * 例如 a =  "0010"，则有:
-   * a 的第 0 位是 0
-   * a 的第 1 位是 0
-   * a 的第 2 位是 1
-   * a 的第 3 位是 0
+   * @brief Initializes the bitset from a string. 
+   * Assumes the string is valid and that the lowest bit is at the start.
+   * For example, if a = "0010", then:
+   * a's 0th bit is 0,
+   * a's 1st bit is 0,
+   * a's 2nd bit is 1,
+   * a's 3rd bit is 0.
    */
   explicit dynamic_bitset(const std::string &str) : dynamic_bitset(str.size()) {
     ull x = 0;
-    for (size_t i : iota(size_t(), str.size())) {
+    for (size_t i = 0; i < str.size(); i++) {
       x |= static_cast<ull>(str[i] == '1') << (i & (L - 1));
       if ((i & (L - 1)) == L - 1) {
         v[i >> LB] = x;
@@ -76,12 +64,13 @@ struct dynamic_bitset {
     }
   }
 
-  // 访问第 n 个位的值，和 vector 一样是 0-base
+  // Accesses the nth bit value. The indexing is 0-based like in a vector.
   bool operator[](std::size_t n) const {
-    auto &x = v[n >> LB];
+    const auto &x = v[n >> LB];
     return x & (1ull << (n & (L - 1)));
   }
-  // 把第 n 位设置为指定值 val
+
+  // Sets the nth bit to a specified value.
   dynamic_bitset &set(std::size_t n, bool val = true) {
     auto &x = v[n >> LB];
     if (val) {
@@ -91,7 +80,8 @@ struct dynamic_bitset {
     }
     return *this;
   }
-  // 在尾部插入一个位，并且长度加一
+
+  // Inserts a new bit at the end, increase the bitset size by one.
   dynamic_bitset &push_back(bool val = false) {
     ++s;
     if ((s & (L - 1)) == 1) v.emplace_back();
@@ -99,8 +89,8 @@ struct dynamic_bitset {
     return *this;
   }
 
-  // 如果不存在 1 ，则返回 true。否则返回 false
-  bool none() const {
+  // Returns true if all bits are 0, false otherwise.
+  [[nodiscard]] bool none() const {
     for (auto x : v) {
       if (x) {
         return false;
@@ -108,12 +98,13 @@ struct dynamic_bitset {
     }
     return true;
   }
-  // 如果不存在 0 ，则返回 true。否则返回 false
+
+  // Returns true if all bits are 1, false otherwise.
   bool all() const {
     if (v.empty()) {
       return true;
     }
-    for (auto i : iota(size_t(), v.size() - 1)) {
+    for (size_t i = 0; i < v.size() - 1; i++) {
       if (~v[i]) {
         return false;
       }
@@ -121,65 +112,68 @@ struct dynamic_bitset {
     return v.back() == tailMask(s);
   }
 
-  // 返回 1 的个数
+  // Returns the number of 1s in the bitset.
   size_t count() const {
     size_t res = 0;
     for (auto x : v) {
-      res += __builtin_popcountll(x);
+      res += std::popcount(x);
     }
     return res;
   }
 
-  // 返回自身的长度
+  // Returns the length of the bitset.
   std::size_t size() const {
     return s;
   }
 
   /**
-   * 所有位运算操作均按照以下规则进行:
-   * 取两者中较短的长度那个作为操作长度。
-   * 换句话说，我们仅操作两者中重叠的部分，其他部分不变。
-   * 在操作前后，bitset 的长度不应该发生改变。
+   * All bitwise operations follow these rules:
+   * The smaller length of the two bitsets will be used in the operation.
+   * In other words, operations are performed only on their overlapping parts, with other parts unchanged.
+   * The length of the bitset should not change before and after the operation.
    *
-   * 比如 a = "10101", b = "1100"
-   * a |= b 之后，a 应该变成 "11101"
-   * b |= a 之后，b 应该变成 "1110"
-   * a &= b 之后，a 应该变成 "10001"
-   * b &= a 之后，b 应该变成 "1000"
-   * a ^= b 之后，a 应该变成 "01101"
-   * b ^= a 之后，b 应该变成 "0110"
+   * For example:
+   * a = "10101", b = "1100"
+   * After a |= b, a should become "11101"
+   * After b |= a, b should become "1110"
+   * After a &= b, a should become "10001"
+   * After b &= a, b should become "1000"
+   * After a ^= b, a should become "01101"
+   * After b ^= a, b should become "0110"
    */
 
-  // 或操作，返回自身的引用。     a |= b 即 a = a | b
+  // OR operation, returns a reference to the modified bitset. a |= b means a = a | b
   dynamic_bitset &operator|=(const dynamic_bitset &rhs) {
     size_t l = std::min(s, rhs.s);
     size_t vl = std::min(v.size(), rhs.v.size());
     if (vl > 0) {
-      for (auto i : iota(size_t(), vl - 1)) {
+      for (size_t i = 0; i < vl - 1; i++) {
         v[i] |= rhs.v[i];
       }
       v[vl - 1] |= rhs.v[vl - 1] & tailMask(l);
     }
     return *this;
   }
-  // 与操作，返回自身的引用。     a &= b 即 a = a & b
+
+  // AND operation, returns a reference to the modified bitset. a &= b means a = a & b
   dynamic_bitset &operator&=(const dynamic_bitset &rhs) {
     size_t l = std::min(s, rhs.s);
     size_t vl = std::min(v.size(), rhs.v.size());
     if (vl > 0) {
-      for (auto i : iota(size_t(), vl - 1)) {
+      for (size_t i = 0; i < vl - 1; i++) {
         v[i] &= rhs.v[i];
       }
       v[vl - 1] &= rhs.v[vl - 1] | ~tailMask(l);
     }
     return *this;
   }
-  // 异或操作，返回自身的引用。   a ^= b 即 a = a ^ b
+
+  // XOR operation, returns a reference to the modified bitset. a ^= b means a = a ^ b
   dynamic_bitset &operator^=(const dynamic_bitset &rhs) {
     size_t l = std::min(s, rhs.s);
     size_t vl = std::min(v.size(), rhs.v.size());
     if (vl > 0) {
-      for (auto i : iota(size_t(), vl - 1)) {
+      for (size_t i = 0; i < vl - 1; i++) {
         v[i] ^= rhs.v[i];
       }
       v[vl - 1] ^= rhs.v[vl - 1] & tailMask(l);
@@ -188,13 +182,13 @@ struct dynamic_bitset {
   }
 
   /**
-   * @brief 左移 n 位 。类似无符号整数的左移，最低位会补 0.
-   * 例如 a = "1110"
-   * a <<= 3 之后，a 应该变成 "0001110"
-   * @return 返回自身的引用
+   * @brief Left shifts the bitset by n positions. Similar to unsigned integer left shifts, the lower bits will be set to 0.
+   * For example, if a = "1110"
+   * After a <<= 3, a should become "0001110"
+   * @return Returns a reference to the modified bitset.
    */
   dynamic_bitset &operator<<=(std::size_t n) {
-    if (n == (1 << 19)) exit(0);
+    if (n == (1 << 19)) exit(0);  // (This line seems like a debug statement and may need explanation or removal)
     s += n;
     v.resize(VSize());
     if (v.empty()) {
@@ -211,12 +205,13 @@ struct dynamic_bitset {
     v[(n >> LB)] = lst << (n & (L - 1));
     return *this;
   }
+
   /**
-   * @brief 右移 n 位 。类似无符号整数的右移，最低位丢弃。
-   * 例如 a = "10100"
-   * a >>= 2 之后，a 应该变成 "100"
-   * a >>= 9 之后，a 应该变成 "" (即长度为 0)
-   * @return 返回自身的引用
+   * @brief Right shifts the bitset by n positions. Similar to unsigned integer right shifts, lower bits are discarded.
+   * For example, if a = "10100"
+   * After a >>= 2, a should become "100"
+   * After a >>= 9, a should become "" (i.e., length is 0)
+   * @return Returns a reference to the modified bitset.
    */
   dynamic_bitset &operator>>=(std::size_t n) {
     if (s <= n) {
@@ -233,34 +228,36 @@ struct dynamic_bitset {
     return *this;
   }
 
-  // 把所有位设置为 1
+  // Sets all bits to 1.
   dynamic_bitset &set() {
     if (v.empty()) {
       return *this;
     }
-    for (auto i : iota(size_t(), v.size() - 1)) {
+    for (size_t i = 0; i < v.size() - 1; i++) {
       v[i] = ~0;
     }
     v.back() = tailMask(s);
     return *this;
   }
-  // 把所有位取反
+
+  // Flips (inverts) all bits.
   dynamic_bitset &flip() {
     if (v.empty()) {
       return *this;
     }
-    for (auto i : iota(size_t(), v.size() - 1)) {
+    for (size_t i = 0; i < v.size() - 1; i++) {
       v[i] = ~v[i];
     }
     v.back() = (~v.back()) & tailMask(s);
     return *this;
   }
-  // 把所有位设置为 0
+
+  // Resets all bits to 0.
   dynamic_bitset &reset() {
     if (v.empty()) {
       return *this;
     }
-    for (auto i : iota(size_t(), v.size() - 1)) {
+    for (size_t i = 0; i < v.size() - 1; i++) {
       v[i] = 0;
     }
     v.back() = 0;
