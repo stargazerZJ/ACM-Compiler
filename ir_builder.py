@@ -3,8 +3,9 @@ import antlr4
 from antlr_generated.MxParser import MxParser
 from antlr_generated.MxParserVisitor import MxParserVisitor
 from ir_renamer import renamer
-from ir_utils import IRLoad, IRStore, IRAlloca, IRBinOp, IRIcmp, BBExit, BlockChain, BuilderStack, IRModule, \
+from ir_repr import IRLoad, IRStore, IRAlloca, IRBinOp, IRIcmp, BBExit, IRModule, \
     IRFunction, IRCall, IRClass, IRMalloc, IRGetElementPtr, IRGlobal, IRStr
+from ir_utils import BlockChain, BuilderStack
 from syntax_error import MxSyntaxError, ThrowingErrorListener
 from syntax_recorder import SyntaxRecorder, VariableInfo, FunctionInfo, internal_array_info, builtin_function_infos
 from type import TypeBase, builtin_types, InternalPtrType, FunctionType, ArrayType
