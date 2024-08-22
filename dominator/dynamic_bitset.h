@@ -12,24 +12,10 @@
 #include <ranges>
 #include <cassert>
 
-struct dynamic_bitset {
-    using ull                 = unsigned long long;
-    static constexpr size_t L = 64, LB = 6;
-    size_t                  s = 0;
-    std::vector<ull>        v;
+class dynamic_bitset {
+    using ull = unsigned long long;
 
-    [[nodiscard]] size_t VSize() const {
-        return (s + L - 1) >> LB;
-    }
-
-    static constexpr ull tailMask(size_t k) {
-        if (k & (L - 1)) {
-            return (1ull << (k & (L - 1))) - 1;
-        } else {
-            return ~0ull;
-        }
-    }
-
+public:
     dynamic_bitset() = default;
 
     ~dynamic_bitset() = default;
@@ -275,5 +261,22 @@ struct dynamic_bitset {
             }
         }
         return indices;
+    }
+
+private:
+    static constexpr size_t L = 64, LB = 6;
+    size_t                  s = 0;
+    std::vector<ull>        v;
+
+    [[nodiscard]] size_t VSize() const {
+        return (s + L - 1) >> LB;
+    }
+
+    static constexpr ull tailMask(size_t k) {
+        if (k & (L - 1)) {
+            return (1ull << (k & (L - 1))) - 1;
+        } else {
+            return ~0ull;
+        }
     }
 };
