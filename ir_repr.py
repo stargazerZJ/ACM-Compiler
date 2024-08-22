@@ -293,12 +293,13 @@ class IRStr(IRCmdBase):
                     .replace("\"", "\\22").replace("\0", "\\00"))
         return f"{self.name} = private unnamed_addr constant [{self.length + 1} x i8] c\"{value_ir}\""
 
+from ir_utils import BlockChain
 
 class IRFunction:
     info: FunctionInfo
     blocks: list[BasicBlock] | None
 
-    def __init__(self, info: FunctionInfo, chain: "BlockChain" = None):
+    def __init__(self, info: FunctionInfo, chain: BlockChain = None):
         self.info = info
         self.blocks = chain.collect_blocks() if chain is not None else None
 
