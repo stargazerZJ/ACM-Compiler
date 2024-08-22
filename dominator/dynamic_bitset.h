@@ -100,12 +100,12 @@ struct dynamic_bitset {
   }
 
   // Returns true if all bits are 1, false otherwise.
-  bool all() const {
+  [[nodiscard]] bool all() const {
     if (v.empty()) {
       return true;
     }
-    for (size_t i = 0; i < v.size() - 1; i++) {
-      if (~v[i]) {
+    for (auto x : v) {
+      if (~x) {
         return false;
       }
     }
@@ -113,7 +113,7 @@ struct dynamic_bitset {
   }
 
   // Returns the number of 1s in the bitset.
-  size_t count() const {
+  [[nodiscard]] size_t count() const {
     size_t res = 0;
     for (auto x : v) {
       res += std::popcount(x);
@@ -122,7 +122,7 @@ struct dynamic_bitset {
   }
 
   // Returns the length of the bitset.
-  std::size_t size() const {
+  [[nodiscard]] std::size_t size() const {
     return s;
   }
 
@@ -188,7 +188,6 @@ struct dynamic_bitset {
    * @return Returns a reference to the modified bitset.
    */
   dynamic_bitset &operator<<=(std::size_t n) {
-    if (n == (1 << 19)) exit(0);  // (This line seems like a debug statement and may need explanation or removal)
     s += n;
     v.resize(VSize());
     if (v.empty()) {
