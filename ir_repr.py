@@ -1,10 +1,12 @@
 # Utility types and functions for LLVM 15 IR generation
-from ir_utils import BlockChain
 from syntax_recorder import FunctionInfo, ClassInfo, builtin_function_infos, internal_array_info, VariableInfo
 from type import TypeBase
 
 
 class IRCmdBase:
+    var_def: list[str]
+    var_use: list[str]
+
     def llvm(self) -> str:
         raise NotImplementedError()
 
@@ -12,10 +14,18 @@ class IRCmdBase:
 class IRBinOp(IRCmdBase):
     def __init__(self, dest: str, op: str, lhs: str, rhs: str, typ: str):
         self.op = op
-        self.dest = dest
-        self.lhs = lhs
-        self.rhs = rhs
+        self.var_def = [dest]
+        self.var_use = [lhs, rhs]
         self.typ = typ
+
+    @property
+    def dest(self): return self.var_def[0]
+
+    @property
+    def lhs(self): return self.var_use[0]
+
+    @property
+    def rhs(self): return self.var_use[1]
 
     def llvm(self):
         return f"{self.dest} = {self.op} {self.typ} {self.lhs}, {self.rhs}"
@@ -24,42 +34,70 @@ class IRBinOp(IRCmdBase):
 class IRIcmp(IRCmdBase):
     def __init__(self, dest: str, op: str, typ: str, lhs: str, rhs: str):
         self.op = op
-        self.dest = dest
-        self.lhs = lhs
-        self.rhs = rhs
+        self.var_def = [dest]
+        self.var_use = [lhs, rhs]
         self.typ = typ
+
+    @property
+    def dest(self): return self.var_def[0]
+
+    @property
+    def lhs(self): return self.var_use[0]
+
+    @property
+    def rhs(self): return self.var_use[1]
 
     def llvm(self):
         return f"{self.dest} = icmp {self.op} {self.typ} {self.lhs}, {self.rhs}"
 
 
+
 class IRLoad(IRCmdBase):
     def __init__(self, dest: str, src: str, typ: str):
-        self.dest = dest
-        self.src = src
+        self.var_def = [dest]
+        self.var_use = [src]
         self.typ = typ
+
+    @property
+    def dest(self): return self.var_def[0]
+
+    @property
+    def src(self): return self.var_use[0]
 
     def llvm(self):
         return f"{self.dest} = load {self.typ}, ptr {self.src}"
 
 
+
 class IRStore(IRCmdBase):
     def __init__(self, dest: str, src: str, typ: str):
-        self.dest = dest
-        self.src = src
+        self.var_def = []
+        self.var_use = [dest, src]
         self.typ = typ
+
+    @property
+    def dest(self): return self.var_use[0]
+
+    @property
+    def src(self): return self.var_use[1]
 
     def llvm(self):
         return f"store {self.typ} {self.src}, ptr {self.dest}"
 
 
+
 class IRAlloca(IRCmdBase):
     def __init__(self, dest: str, typ: str):
-        self.dest = dest
+        self.var_def = [dest]
+        self.var_use = []
         self.typ = typ
+
+    @property
+    def dest(self): return self.var_def[0]
 
     def llvm(self):
         return f"{self.dest} = alloca {self.typ}"
+
 
 
 class BBExit:
@@ -122,56 +160,72 @@ unreachable_block = UnreachableBlock()
 
 class IRJump(IRCmdBase):
     def __init__(self, dest: BBExit):
+        self.var_def = []
+        self.var_use = []
         self.dest = dest
 
     def llvm(self):
         return f"br label %{self.dest.llvm()}"
 
 
+
 class IRBranch(IRCmdBase):
     def __init__(self, cond: str, true_dest: BBExit, false_dest: BBExit):
-        self.cond = cond
+        self.var_def = []
+        self.var_use = [cond]
         self.true_dest = true_dest
         self.false_dest = false_dest
+
+    @property
+    def cond(self): return self.var_use[0]
 
     def llvm(self):
         return f"br i1 {self.cond}, label %{self.true_dest.llvm()}, label %{self.false_dest.llvm()}"
 
-
 class IRRet(IRCmdBase):
     def __init__(self, typ: str, value: str = ""):
+        self.var_def = []
+        self.var_use = [value] if value else []
         self.typ = typ
-        self.value = value
+
+    @property
+    def value(self): return self.var_use[0] if self.var_use else ""
 
     def llvm(self):
-        return f"ret {self.typ} {self.value}"
+        return f"ret {self.typ} {self.value}".strip()
+
 
 
 class IRPhi(IRCmdBase):
     def __init__(self, dest: str, typ: str, values: list[tuple[BBExit, str]]):
-        self.dest = dest
+        self.var_def = [dest]
+        self.var_use = [v[1] for v in values]
         self.typ = typ
-        self.values = values
+        self.sources = [v[0] for v in values]
+
+    @property
+    def dest(self): return self.var_def[0]
 
     def llvm(self):
         ret = f"{self.dest} = phi {self.typ} "
-        for value in self.values:
-            ret += f"[{value[1]}, %{value[0].block.name}], "
-        ret = ret[:-2]
+        ret += ", ".join(f"[{value}, %{source.block.name}]" for source, value in zip(self.sources, self.var_use))
         return ret
 
 
 class IRCall(IRCmdBase):
     def __init__(self, dest: str, func: FunctionInfo, args: list[str]):
-        self.dest = dest
+        self.var_def = [dest] if dest else []
+        self.var_use = args
         self.func = func
         self.typ = func.ret_type.ir_name
-        self.args = args
+
+    @property
+    def dest(self): return self.var_def[0] if self.var_def else ""
 
     def llvm(self):
-        if self.dest == "":
-            return f"call {self.typ} {self.func.ir_name}({', '.join(f'{ty.ir_name} {name}' for ty, name in zip(self.func.param_types, self.args))})"
-        return f"{self.dest} = call {self.typ} {self.func.ir_name}({', '.join(f'{ty.ir_name} {name}' for ty, name in zip(self.func.param_types, self.args))})"
+        param_list = ", ".join(f"{ty.ir_name} {name}" for ty, name in zip(self.func.param_types, self.var_use))
+        return f"{self.dest} = call {self.typ} {self.func.ir_name}({param_list})" if self.dest else f"call {self.typ} {self.func.ir_name}({param_list})"
+
 
 
 class IRMalloc(IRCall):
@@ -183,11 +237,19 @@ class IRMalloc(IRCall):
 
 class IRGetElementPtr(IRCmdBase):
     def __init__(self, dest: str, typ: ClassInfo | TypeBase, ptr: str, arr_index: str = None, member: str = None):
-        self.dest = dest
+        self.var_def = [dest]
+        self.var_use = [ptr, arr_index] if arr_index else [ptr]
         self.typ = typ
-        self.ptr = ptr
-        self.arr_index = arr_index or "0"
         self.member = member
+
+    @property
+    def dest(self): return self.var_def[0]
+
+    @property
+    def ptr(self): return self.var_use[0]
+
+    @property
+    def arr_index(self): return self.var_use[1] if len(self.var_use) > 1 else "0"
 
     def llvm(self):
         if isinstance(self.typ, ClassInfo):
@@ -197,27 +259,33 @@ class IRGetElementPtr(IRCmdBase):
             return f"{self.dest} = getelementptr inbounds {self.typ.ir_name}, ptr {self.ptr}, i32 {self.arr_index}"
 
 
-class IRGlobal:
+
+class IRGlobal(IRCmdBase):
     def __init__(self, name: str, typ: str, value: str):
-        self.name = name
+        self.var_def = [name]
         self.typ = typ
-        self.value = value
+        self.var_use = [value]
+
+    @property
+    def name(self): return self.var_def[0]
+
+    @property
+    def value(self): return self.var_use[0]
 
     def llvm(self):
         return f"{self.name} = global {self.typ} {self.value}"
 
 
-class IRStr:
+class IRStr(IRCmdBase):
     """String Literal"""
-    name: str
-    value: str
-    length: int
-
     def __init__(self, name: str, value: str):
-        self.name = name
+        self.var_def = [name]
         value = value.replace("\\\\", "\\").replace("\\n", "\n").replace("\\\"", '"')
         self.value = value + "\0"
         self.length = len(value)
+
+    @property
+    def name(self): return self.var_def[0]
 
     def llvm(self):
         # only 3 characters need to be escaped in the Mx* language: \n, \ and "
@@ -230,7 +298,7 @@ class IRFunction:
     info: FunctionInfo
     blocks: list[BasicBlock] | None
 
-    def __init__(self, info: FunctionInfo, chain: BlockChain = None):
+    def __init__(self, info: FunctionInfo, chain: "BlockChain" = None):
         self.info = info
         self.blocks = chain.collect_blocks() if chain is not None else None
 
