@@ -112,6 +112,11 @@ public:
         return s;
     }
 
+    // Compare two bitsets.
+    [[nodiscard]] bool operator==(const dynamic_bitset& rhs) const {
+        return s == rhs.s && v == rhs.v;
+    }
+
     /**
      * All bitwise operations follow these rules:
      * The smaller length of the two bitsets will be used in the operation.
