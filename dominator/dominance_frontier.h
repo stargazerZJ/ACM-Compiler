@@ -3,6 +3,7 @@
 #include <algorithm>
 #include "dynamic_bitset.h"
 #include "dominator_tree.h"
+#include "predecessor_set.h"
 
 using graph_type = std::vector<std::vector<int>>;
 /**
@@ -57,4 +58,9 @@ inline graph_type get_reverse_dominance_frontier(const graph_type& graph) {
     }
 
     return result;
+}
+
+inline graph_type get_indirect_predecessor_set_of_dominator_frontier(const graph_type& graph) {
+    auto reverse_dominance_frontier = get_reverse_dominance_frontier(graph);
+    return get_indirect_predecessor_set(reverse_dominance_frontier);
 }
