@@ -22,7 +22,7 @@ inline graph_type get_reverse_dominance_frontier(const graph_type& graph) {
         }
     }
 
-    // Step 2: Calculate immediate dominators and build the dominance tree
+    // Step 2: Calculate immediate dominators
     DominatorTree domTree(graph);
     domTree.compute();
     std::vector<int> idom      = domTree.get_immediate_dominators();
@@ -30,11 +30,11 @@ inline graph_type get_reverse_dominance_frontier(const graph_type& graph) {
 
     // Step 3: Calculate the dominance set of each node using dynamic_bitset
     std::vector<dynamic_bitset> dom_set(n, dynamic_bitset(n));
-    for (int i = n - 1; i >= 0; --i) {
+    for (int i = 0; i < n; ++i) {
         int node = dfs_order[i];
         dom_set[node].set(node);
         if (idom[node] != -1) {
-             dom_set[idom[node]] |= dom_set[node];
+             dom_set[node] |= dom_set[idom[node]];
         }
     }
 
