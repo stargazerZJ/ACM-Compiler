@@ -16,3 +16,5 @@ find_package(pybind11 CONFIG REQUIRED)
 
 pybind11_add_module(dominator dominance_frontier.cpp)
 install(TARGETS dominator DESTINATION .)
+
+add_executable(test dominance_frontier_test.cpp)
