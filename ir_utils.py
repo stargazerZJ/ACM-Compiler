@@ -151,12 +151,12 @@ class BlockChain:
                     cmd = IRBinOp(invert_cond, "xor", cond, "true", "i1")
                     predecessor_block = jump_exit.block
                     predecessor_block.cmds.insert(-1, cmd)
-                    phi_values.append((jump_exit, invert_cond))
+                    phi_values.append((jump_exit.block, invert_cond))
                 else:
-                    phi_values.append((jump_exit, cond))
+                    phi_values.append((jump_exit.block, cond))
             elif len(exits) == 1:
                 BlockChain.link_exits_to_block(exits, block)
-                phi_values.append((exits[0], "true" if exits[0] in true_exits else "false"))
+                phi_values.append((exits[0].block, "true" if exits[0] in true_exits else "false"))
             else:
                 raise AssertionError("Block has more than two exits in the merged list")
 
@@ -175,6 +175,7 @@ class BlockChain:
         assert not self.header.cmds
         self.exits = [exit_ for exit_, _ in values]
         block = self.concentrate()
+        values = [(bb_exit.block, value) for bb_exit, value in values]
         block.add_cmd(IRPhi(dest, typ, values))
 
     def jump(self):

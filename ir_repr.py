@@ -117,6 +117,7 @@ class BasicBlock:
     predecessors: list[BBExit]
     successors: list["BasicBlock"]
     index: int
+    unreachable_mark: bool
 
     def __init__(self, name: str):
         self.name = name
@@ -193,7 +194,7 @@ class IRRet(IRCmdBase):
 
 
 class IRPhi(IRCmdBase):
-    def __init__(self, dest: str, typ: str, values: list[tuple[BBExit, str]]):
+    def __init__(self, dest: str, typ: str, values: list[tuple[BasicBlock, str]]):
         self.var_def = [dest]
         self.var_use = [v[1] for v in values]
         self.typ = typ
@@ -204,7 +205,7 @@ class IRPhi(IRCmdBase):
 
     def llvm(self):
         ret = f"{self.dest} = phi {self.typ} "
-        ret += ", ".join(f"[{value}, %{source.block.name}]" for source, value in zip(self.sources, self.var_use))
+        ret += ", ".join(f"[{value}, %{source.name}]" for source, value in zip(self.sources, self.var_use))
         return ret
 
 
