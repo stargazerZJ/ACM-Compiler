@@ -56,16 +56,18 @@ def mem2reg(function: IRFunction):
     blocks: list[BasicBlock] = function.blocks
     n = len(blocks)
 
+    mark_blocks(blocks)
     cfg = build_graph(blocks)
     allocas, type_map = collect_allocas(blocks)
     defs = collect_mem_defs(blocks, allocas)
     dominance_frontier_pred = dominator.get_indirect_predecessor_set_of_dominator_frontier(cfg)
     phi_map = [
-        {pointer_name: PhiMap(pointer_name)}
-        for i in range(n)
-        for pointer_name in set.union(*(
-            defs[pred] for pred in dominance_frontier_pred[i]
-        ))
+        {pointer_name: PhiMap(pointer_name)
+         for pointer_name in set.union(*(
+            defs[pred] for pred in preds
+        ))}
+        if preds else {}
+        for preds in dominance_frontier_pred
     ]
     stack: dict[str, list[str | IRUndefinedValue]] = {
         pointer_name: [IRUndefinedValue(type_map[pointer_name])]
@@ -79,16 +81,15 @@ def mem2reg(function: IRFunction):
         for pointer_name, info in phi_map[index].items():
             stack[pointer_name].append(info.dest)
         for cmd in blocks[index]:
-            cmd.var_use = (
+            cmd.var_use = [
                 rename_map.get(var, var) for var in cmd.var_use
-            )
+            ]
             if isinstance(cmd, IRStore):
                 if cmd.dest in allocas:
                     stack[cmd.dest].append(cmd.src)
             elif isinstance(cmd, IRLoad):
                 if cmd.src in allocas:
                     rename_map[cmd.dest] = stack[cmd.src][-1]
-        blocks[index].cmds = [cmd for cmd in blocks[index] if not isinstance(cmd, IRLoad) or cmd.src not in allocas]
         for succ in blocks[index].successors:
             for pointer_name, info in phi_map[succ.index].items():
                 info.values[index] = stack[pointer_name][-1]
@@ -100,14 +101,15 @@ def mem2reg(function: IRFunction):
             if isinstance(cmd, IRStore):
                 if cmd.dest in allocas:
                     stack[cmd.dest].pop()
+        blocks[index].cmds = [cmd for cmd in blocks[index]
+                              if (not isinstance(cmd, IRLoad) or cmd.src not in allocas)
+                              and (not isinstance(cmd, IRStore) or cmd.dest not in allocas)]
 
     dfs(0)
 
     for phi_map_item, block in zip(phi_map, blocks):
-        if any(
-                all(isinstance(value, IRUndefinedValue) for value in phi.values.values())
-                for phi in phi_map_item.values()
-        ):
+        if any( all(isinstance(value, IRUndefinedValue) for value in phi.values.values())
+                for phi in phi_map_item.values()):
             block.is_unreachable = True
             continue
 
@@ -119,8 +121,12 @@ def mem2reg(function: IRFunction):
 
         block.cmds = phi_cmds + block.cmds
 
+    blocks[0].cmds = [cmd for cmd in blocks[0].cmds if not isinstance(cmd, IRAlloca)]
+
+
 if __name__ == '__main__':
-    from antlr_generated.MxLexer import MxLexer, MxParser
+    from antlr_generated.MxLexer import MxLexer
+    from antlr_generated.MxParser import MxParser
     from syntax_checker import SyntaxChecker
     import sys
     import antlr4
@@ -128,9 +134,9 @@ if __name__ == '__main__':
     from ir_builder import IRBuilder
     from ir_repr import IRModule
 
-    test_file_path = "./testcases/demo/d11.mx"
-    input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
-    # input_stream = antlr4.StdinStream(encoding='utf-8')
+    # test_file_path = "./testcases/demo/d3.mx"
+    # input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
+    input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)
     parser = MxParser(antlr4.CommonTokenStream(lexer))
 
