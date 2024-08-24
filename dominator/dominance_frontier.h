@@ -33,10 +33,10 @@ inline graph_type get_reverse_dominance_frontier(const graph_type& graph) {
     std::vector<dynamic_bitset> dom_set(n, dynamic_bitset(n));
     for (int i = 0; i < n; ++i) {
         int node = dfs_order[i];
-        dom_set[node].set(node);
         if (idom[node] != -1) {
-             dom_set[node] |= dom_set[idom[node]];
+             dom_set[node] = dom_set[idom[node]];
         }
+        dom_set[node].set(node);
     }
 
     // Step 4: Calculate the reverse dominance frontier
