@@ -51,7 +51,6 @@ class IRIcmp(IRCmdBase):
         return f"{self.dest} = icmp {self.op} {self.typ} {self.lhs}, {self.rhs}"
 
 
-
 class IRLoad(IRCmdBase):
     def __init__(self, dest: str, src: str, typ: str):
         self.var_def = [dest]
@@ -66,7 +65,6 @@ class IRLoad(IRCmdBase):
 
     def llvm(self):
         return f"{self.dest} = load {self.typ}, ptr {self.src}"
-
 
 
 class IRStore(IRCmdBase):
@@ -85,7 +83,6 @@ class IRStore(IRCmdBase):
         return f"store {self.typ} {self.src}, ptr {self.dest}"
 
 
-
 class IRAlloca(IRCmdBase):
     def __init__(self, dest: str, typ: str):
         self.var_def = [dest]
@@ -97,7 +94,6 @@ class IRAlloca(IRCmdBase):
 
     def llvm(self):
         return f"{self.dest} = alloca {self.typ}"
-
 
 
 class BBExit:
@@ -120,6 +116,7 @@ class BasicBlock:
     cmds: list[IRCmdBase]
     predecessors: list[BBExit]
     successors: list["BasicBlock"]
+    index: int
 
     def __init__(self, name: str):
         self.name = name
@@ -168,7 +165,6 @@ class IRJump(IRCmdBase):
         return f"br label %{self.dest.llvm()}"
 
 
-
 class IRBranch(IRCmdBase):
     def __init__(self, cond: str, true_dest: BBExit, false_dest: BBExit):
         self.var_def = []
@@ -182,6 +178,7 @@ class IRBranch(IRCmdBase):
     def llvm(self):
         return f"br i1 {self.cond}, label %{self.true_dest.llvm()}, label %{self.false_dest.llvm()}"
 
+
 class IRRet(IRCmdBase):
     def __init__(self, typ: str, value: str = ""):
         self.var_def = []
@@ -193,7 +190,6 @@ class IRRet(IRCmdBase):
 
     def llvm(self):
         return f"ret {self.typ} {self.value}".strip()
-
 
 
 class IRPhi(IRCmdBase):
@@ -227,7 +223,6 @@ class IRCall(IRCmdBase):
         return f"{self.dest} = call {self.typ} {self.func.ir_name}({param_list})" if self.dest else f"call {self.typ} {self.func.ir_name}({param_list})"
 
 
-
 class IRMalloc(IRCall):
     """Only structs use malloc. Arrays use __newPtrArray, __newIntArray etc."""
 
@@ -243,13 +238,16 @@ class IRGetElementPtr(IRCmdBase):
         self.member = member
 
     @property
-    def dest(self): return self.var_def[0]
+    def dest(self):
+        return self.var_def[0]
 
     @property
-    def ptr(self): return self.var_use[0]
+    def ptr(self):
+        return self.var_use[0]
 
     @property
-    def arr_index(self): return self.var_use[1] if len(self.var_use) > 1 else "0"
+    def arr_index(self):
+        return self.var_use[1] if len(self.var_use) > 1 else "0"
 
     def llvm(self):
         if isinstance(self.typ, ClassInfo):
@@ -257,7 +255,6 @@ class IRGetElementPtr(IRCmdBase):
             return f"{self.dest} = getelementptr inbounds {self.typ.ir_name}, ptr {self.ptr}, i32 {self.arr_index}, i32 {member_index}"
         elif isinstance(self.typ, TypeBase):
             return f"{self.dest} = getelementptr inbounds {self.typ.ir_name}, ptr {self.ptr}, i32 {self.arr_index}"
-
 
 
 class IRGlobal(IRCmdBase):
@@ -278,6 +275,7 @@ class IRGlobal(IRCmdBase):
 
 class IRStr(IRCmdBase):
     """String Literal"""
+
     def __init__(self, name: str, value: str):
         self.var_def = [name]
         value = value.replace("\\\\", "\\").replace("\\n", "\n").replace("\\\"", '"')
@@ -293,7 +291,9 @@ class IRStr(IRCmdBase):
                     .replace("\"", "\\22").replace("\0", "\\00"))
         return f"{self.name} = private unnamed_addr constant [{self.length + 1} x i8] c\"{value_ir}\""
 
+
 from ir_utils import BlockChain
+
 
 class IRFunction:
     info: FunctionInfo
@@ -304,7 +304,7 @@ class IRFunction:
         self.blocks = chain.collect_blocks() if chain is not None else None
 
     def llvm(self):
-        if self.blocks is None:
+        if self.is_declare():
             param_str = ", ".join(f"{ty.ir_name}" for ty in self.info.param_types)
             return f"declare {self.info.ret_type.ir_name} {self.info.ir_name}({param_str})"
         else:
@@ -312,6 +312,9 @@ class IRFunction:
                 f"{ty.ir_name} {name}.param" for ty, name in zip(self.info.param_types, self.info.param_ir_names))
             body = "\n".join(block.llvm() for block in self.blocks)
             return f"define {self.info.ret_type.ir_name} {self.info.ir_name}({param_str}) {{\n{body}}}\n"
+
+    def is_declare(self):
+        return self.blocks is None
 
 
 class IRClass(ClassInfo):
