@@ -95,6 +95,12 @@ def mem2reg(function: IRFunction):
                 info.values[index] = stack[pointer_name][-1]
             if succ.index not in visited:
                 dfs(succ.index)
+            else:
+                for cmd in succ:
+                    if not isinstance(cmd, IRPhi): break
+                    cmd.var_use = [
+                        rename_map.get(var, var) for var in cmd.var_use
+                    ]
         for pointer_name, info in phi_map[index].items():
             stack[pointer_name].pop()
         for cmd in blocks[index]:
@@ -111,7 +117,6 @@ def mem2reg(function: IRFunction):
         if any( all(isinstance(value, IRUndefinedValue) for value in phi.values.values())
                 for phi in phi_map_item.values()):
             block.is_unreachable = True
-            continue
 
         phi_cmds = [
             IRPhi(phi.dest, type_map[pointer_name],
@@ -134,7 +139,7 @@ if __name__ == '__main__':
     from ir_builder import IRBuilder
     from ir_repr import IRModule
 
-    # test_file_path = "./testcases/demo/d3.mx"
+    # test_file_path = "./testcases/codegen/t71.mx"
     # input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)
