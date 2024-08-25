@@ -41,18 +41,15 @@ inline graph_type get_reverse_dominance_frontier(const graph_type& graph) {
 
     // Step 4: Calculate the reverse dominance frontier
     for (int node = 0; node < n; ++node) {
-        bool           flag = false;
         dynamic_bitset fro(n);
 
         for (int prev : reverse_graph[node]) {
-            flag |= dom_set[prev][node];
-            dynamic_bitset tmp = dom_set[prev];
-            tmp &= dom_set[node];
-            tmp ^= dom_set[prev];
-            fro |= tmp;
+            fro |= dom_set[prev];
         }
 
-        fro.set(node, flag);
+        auto tmp = dom_set[node];
+        tmp.set(node, false).flip();
+        fro &= tmp;
 
         result[node] = fro.get_ones();
     }
