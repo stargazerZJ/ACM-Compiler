@@ -4,8 +4,6 @@
 #include "dynamic_bitset.h"
 #include "dominator_tree.h"
 #include "predecessor_set.h"
-
-using graph_type = std::vector<std::vector<int>>;
 /**
  * @brief Get the reverse dominance frontier mapping of every node in a directed graph.
  *      If result[x] contains y, then node x is in the dominance frontier of node y.

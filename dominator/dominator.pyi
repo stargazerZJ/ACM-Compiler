@@ -5,6 +5,7 @@ from typing import List
 # Aliases for readability
 graph_type = List[List[int]]
 
+
 def get_reverse_dominance_frontier(graph: graph_type) -> graph_type:
     """
     Get the reverse dominance frontier mapping of every node in a directed graph.
@@ -14,6 +15,7 @@ def get_reverse_dominance_frontier(graph: graph_type) -> graph_type:
     :return: The reverse dominance frontier mapping as a graph_type.
     """
     pass
+
 
 def get_indirect_predecessor_set(reversed_graph: graph_type) -> graph_type:
     """
@@ -27,6 +29,7 @@ def get_indirect_predecessor_set(reversed_graph: graph_type) -> graph_type:
     """
     pass
 
+
 def get_indirect_predecessor_set_of_dominator_frontier(graph: graph_type) -> graph_type:
     """
     Get the indirect predecessor set of the dominator frontier of each node in
@@ -36,3 +39,13 @@ def get_indirect_predecessor_set_of_dominator_frontier(graph: graph_type) -> gra
     :return: The indirect predecessor set of the dominator frontier as a graph_type.
     """
     pass
+
+
+def get_dominator_tree_dfs_order(graph: graph_type) -> list[int]:
+    """
+    Computes the DFS order of the dominator tree for the given graph.
+    This function computes the dominator tree from the given graph and performs a DFS on the dominator tree to return the DFS order.
+
+    :param graph: The 0-indexed adjacency list of the graph.
+    :return: A vector containing the DFS order of the dominator tree nodes.
+    """

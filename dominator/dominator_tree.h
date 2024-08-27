@@ -2,11 +2,12 @@
 // Created by zj on 8/22/2024.
 //
 
-#include <iostream>
-#include <vector>
-#include <algorithm>
-
 #pragma once
+#include <vector>
+#include <functional>
+
+
+using graph_type = std::vector<std::vector<int>>;
 
 /// All the public methods assumes 0-indexed graph, while internally it uses 1-indexed graph.
 class DominatorTree {
@@ -14,7 +15,8 @@ class DominatorTree {
 private:
     int num_nodes, edge_count = 0, dfs_count = 0;
     std::vector<std::vector<int>> original_graph, reverse_graph, semi_dominator_tree;
-    std::vector<int> dfs_number, dfs_order, parent, immediate_dominator, semi_dominator, disjoint_set, min_vertex, subtree_size;
+    std::vector<int> dfs_number, dfs_order, parent, immediate_dominator, semi_dominator, disjoint_set, min_vertex,
+                     subtree_size;
 
     int find_set(int v) {
         if (v == disjoint_set[v]) return v;
@@ -36,7 +38,7 @@ private:
 
     void compute_dominators(int start) {
         dfs(start);
-        for (int i = 1; i <= num_nodes; ++i)
+        for (int i            = 1; i <= num_nodes; ++i)
             semi_dominator[i] = disjoint_set[i] = min_vertex[i] = i;
 
         for (int i = dfs_count; i >= 2; --i) {
@@ -111,7 +113,8 @@ public:
      * @param to The ending node of the edge (0-indexed).
      */
     void add_edge(int from, int to) {
-        from ++; to ++; // Convert to 1-indexed graph.
+        from++;
+        to++; // Convert to 1-indexed graph.
         original_graph[from].push_back(to);
         reverse_graph[to].push_back(from);
     }
@@ -129,6 +132,7 @@ public:
     std::vector<int> get_dominated_node_counts() {
         return compute_dominated_node_counts();
     }
+
     /**
      * @brief Computes and returns the immediate dominators of each node starting from a specified node.
      * @details This function computes the immediate dominators beginning from the provided start node and returns them in a 0-indexed format.
@@ -151,3 +155,42 @@ public:
         return dfs_0_ind;
     }
 };
+
+/**
+ * @brief Computes the DFS order of the dominator tree for the given graph.
+ * @details This function computes the dominator tree from the given graph and performs a DFS on the dominator tree to return the DFS order.
+ * @param graph The 0-indexed adjacency list of the graph.
+ * @return A vector containing the DFS order of the dominator tree nodes.
+ */
+inline std::vector<int> get_dominator_tree_dfs_order(const graph_type& graph) {
+    DominatorTree dt(graph);
+    dt.compute();
+    auto idom = dt.get_immediate_dominators();
+
+    // Create the dominator tree from the immediate dominators
+    graph_type dominator_tree(graph.size());
+    for (int i = 0; i < idom.size(); ++i) {
+        if (idom[i] != -1) {
+            dominator_tree[idom[i]].push_back(i);
+        }
+    }
+
+    // Perform DFS on the dominator tree to get the DFS order
+    std::vector<int>  dfs_order;
+    std::vector<bool> visited(graph.size(), false);
+    dfs_order.reserve(graph.size());
+
+    std::function<void(int)> dfs = [&](int node) {
+        visited[node] = true;
+        dfs_order.push_back(node);
+        for (int neighbor : dominator_tree[node]) {
+            if (!visited[neighbor]) {
+                dfs(neighbor);
+            }
+        }
+    };
+
+    dfs(0);
+
+    return dfs_order;
+}
