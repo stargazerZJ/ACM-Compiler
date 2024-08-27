@@ -350,3 +350,8 @@ class IRModule:
         strings = "\n".join(string.llvm() for string in self.strings)
         functions = "\n".join(func.llvm() for func in self.functions)
         return f"{classes}\n{global_vars}\n{strings}\n{functions}"
+
+    def for_each_function_definition(self, opt):
+        for function in self.functions:
+            if not function.is_declare():
+                opt(function)

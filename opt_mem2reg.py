@@ -1,15 +1,7 @@
 import dominator
 from ir_renamer import renamer
 from ir_repr import BasicBlock, IRFunction, IRStore, IRAlloca, IRLoad, IRPhi
-
-
-def mark_blocks(blocks: list[BasicBlock]):
-    for ind, block in enumerate(blocks):
-        block.index = ind
-
-
-def build_graph(blocks: list[BasicBlock]) -> dominator.graph_type:
-    return [[s.index for s in block.successors] for block in blocks]
+from opt_utils import mark_blocks, build_graph
 
 
 def collect_mem_defs(blocks: list[BasicBlock], allocas: set[str]):
@@ -165,9 +157,7 @@ if __name__ == '__main__':
     ir: IRModule = ir_builder.visit(tree)
     print("IR building done", file=sys.stderr)
 
-    for function in ir.functions:
-        if not function.is_declare():
-            mem2reg(function)
+    ir.for_each_function_definition(mem2reg)
 
     print("M2R done", file=sys.stderr)
     print(ir.llvm())
