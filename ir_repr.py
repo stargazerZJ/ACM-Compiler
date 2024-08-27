@@ -189,7 +189,7 @@ class IRBranch(IRCmdBase):
 class IRRet(IRCmdBase):
     def __init__(self, typ: str, value: str = ""):
         self.var_def = []
-        self.var_use = [value, "ret_addr"] if value else ["ret_addr"]
+        self.var_use = ["ret_addr", value] if value else ["ret_addr"]
         self.typ = typ
 
     @property
