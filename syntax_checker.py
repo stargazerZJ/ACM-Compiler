@@ -123,8 +123,8 @@ class SyntaxChecker(MxParserVisitor):
                 if not isinstance(type_, ArrayType):
                     raise MxSyntaxError(f"Type mismatch: expected {type_.name}, got array", ctx)
                 self.visitArray_Literal(init_stmt.array_Literal(), typename, dimension)
-            ir_prefix = "@" if self.scope.is_global() else "%"
-            ir_name = renamer.get_name_from_ctx(ir_prefix + init_stmt.Identifier().getText(), init_stmt)
+            ir_name = renamer.get_name_from_ctx("%" + init_stmt.Identifier().getText(), init_stmt)
+            if self.scope.is_global(): ir_name = "@" + ir_name[1:]
             variable_info = VariableInfo(type_.internal_type(), ir_name)
             self.recorder.record(init_stmt, variable_info)
             if not self.scope.is_global():
