@@ -119,12 +119,14 @@ class BasicBlock:
     successors: list["BasicBlock"]
     index: int
     unreachable_mark: bool
+    live_in: set[str]
 
     def __init__(self, name: str):
         self.name = name
         self.cmds = []
         self.predecessors = []
         self.successors = []
+        self.live_in = set()
 
     def llvm(self):
         ret = f"{self.name}:"
@@ -187,11 +189,11 @@ class IRBranch(IRCmdBase):
 class IRRet(IRCmdBase):
     def __init__(self, typ: str, value: str = ""):
         self.var_def = []
-        self.var_use = [value] if value else []
+        self.var_use = [value, "ret_addr"] if value else ["ret_addr"]
         self.typ = typ
 
     @property
-    def value(self): return self.var_use[0] if self.var_use else ""
+    def value(self): return self.var_use[1] if len(self.var_use) > 1 else ""
 
     def llvm(self):
         return f"ret {self.typ} {self.value}".strip()
