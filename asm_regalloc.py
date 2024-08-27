@@ -2,7 +2,7 @@ import dominator
 from ir_repr import IRFunction, IRPhi
 from opt_utils import build_graph
 
-K = 26
+K = 26 # ra, a0-a7, s0-s11, t2-t6
 
 class AllocationBase:
     pass
