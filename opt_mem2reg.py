@@ -1,6 +1,6 @@
 import dominator
 from ir_renamer import renamer
-from ir_repr import BasicBlock, IRFunction, IRStore, IRAlloca, IRLoad, IRPhi
+from ir_repr import BasicBlock, IRFunction, IRStore, IRAlloca, IRLoad, IRPhi, UnreachableBlock
 from opt_utils import mark_blocks, build_graph
 
 
@@ -106,6 +106,9 @@ def mem2reg(function: IRFunction):
     dfs(0)
 
     for phi_map_item, block in zip(phi_map, blocks):
+        if isinstance(block, UnreachableBlock):
+            continue
+
         if any( all(isinstance(value, IRUndefinedValue) for value in phi.values.values())
                 for phi in phi_map_item.values()):
             block.is_unreachable = True

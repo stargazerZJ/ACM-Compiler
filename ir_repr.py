@@ -150,10 +150,6 @@ class UnreachableBlock(BasicBlock):
     def add_cmd(self, cmd: IRCmdBase):
         pass
 
-    @property
-    def cmds(self):
-        return []
-
     def __iter__(self):
         return iter(())
 
