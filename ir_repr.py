@@ -6,6 +6,7 @@ from type import TypeBase
 class IRCmdBase:
     var_def: list[str]
     var_use: list[str]
+    live_out: set[str]
 
     def llvm(self) -> str:
         raise NotImplementedError()
@@ -148,6 +149,13 @@ class UnreachableBlock(BasicBlock):
 
     def add_cmd(self, cmd: IRCmdBase):
         pass
+
+    @property
+    def cmds(self):
+        return []
+
+    def __iter__(self):
+        return iter(())
 
     def llvm(self):
         return "unreachable:\n  unreachable\n"
@@ -299,6 +307,7 @@ from ir_utils import BlockChain
 class IRFunction:
     info: FunctionInfo
     blocks: list[BasicBlock] | None
+    var_defs: set[str]
 
     def __init__(self, info: FunctionInfo, chain: BlockChain = None):
         self.info = info
