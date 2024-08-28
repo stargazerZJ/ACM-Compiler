@@ -98,25 +98,25 @@ class IRAlloca(IRCmdBase):
 
 
 class BBExit:
-    block: "BasicBlock"
+    block: "IRBlock"
     idx: int
 
-    def __init__(self, block: "BasicBlock", idx: int):
+    def __init__(self, block: "IRBlock", idx: int):
         self.block = block
         self.idx = idx
 
-    def get_dest(self) -> "BasicBlock":
+    def get_dest(self) -> "IRBlock":
         return self.block.successors[self.idx]
 
     def llvm(self):
         return self.get_dest().name
 
 
-class BasicBlock:
+class IRBlock:
     name: str
     cmds: list[IRCmdBase]
     predecessors: list[BBExit]
-    successors: list["BasicBlock"]
+    successors: list["IRBlock"]
     index: int
     unreachable_mark: bool
     live_in: set[str]
@@ -145,7 +145,7 @@ class BasicBlock:
         return hash(self.name)
 
 
-class UnreachableBlock(BasicBlock):
+class UnreachableBlock(IRBlock):
     def __init__(self):
         super().__init__("unreachable")
 
@@ -200,7 +200,7 @@ class IRRet(IRCmdBase):
 
 
 class IRPhi(IRCmdBase):
-    def __init__(self, dest: str, typ: str, values: list[tuple[BasicBlock, str]]):
+    def __init__(self, dest: str, typ: str, values: list[tuple[IRBlock, str]]):
         self.var_def = [dest]
         self.var_use = [v[1] for v in values]
         self.typ = typ
@@ -304,7 +304,7 @@ from ir_utils import BlockChain
 
 class IRFunction:
     info: FunctionInfo
-    blocks: list[BasicBlock] | None
+    blocks: list[IRBlock] | None
     var_defs: set[str]
 
     def __init__(self, info: FunctionInfo, chain: BlockChain = None):

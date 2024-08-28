@@ -1,10 +1,10 @@
 import dominator
 from ir_renamer import renamer
-from ir_repr import BasicBlock, IRFunction, IRStore, IRAlloca, IRLoad, IRPhi, UnreachableBlock
+from ir_repr import IRBlock, IRFunction, IRStore, IRAlloca, IRLoad, IRPhi, UnreachableBlock
 from opt_utils import mark_blocks, build_graph
 
 
-def collect_mem_defs(blocks: list[BasicBlock], allocas: set[str]):
+def collect_mem_defs(blocks: list[IRBlock], allocas: set[str]):
     # return [{var for cmd in block for var in cmd.var_def} for block in blocks]
     return [{cmd.dest
              for cmd in block
@@ -12,7 +12,7 @@ def collect_mem_defs(blocks: list[BasicBlock], allocas: set[str]):
             for block in blocks]
 
 
-def collect_allocas(blocks: list[BasicBlock]):
+def collect_allocas(blocks: list[IRBlock]):
     block = blocks[0]
     return {cmd.dest for cmd in block if isinstance(cmd, IRAlloca)}, \
         {cmd.dest: cmd.typ for cmd in block if isinstance(cmd, IRAlloca)}
@@ -45,7 +45,7 @@ class PhiMap:
 
 
 def mem2reg(function: IRFunction):
-    blocks: list[BasicBlock] = function.blocks
+    blocks: list[IRBlock] = function.blocks
     n = len(blocks)
 
     mark_blocks(blocks)

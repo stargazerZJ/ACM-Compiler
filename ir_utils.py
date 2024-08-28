@@ -1,5 +1,5 @@
 from ir_renamer import renamer
-from ir_repr import BasicBlock, BBExit, UnreachableBlock, IRJump, IRPhi, IRBranch, unreachable_block, IRBinOp, \
+from ir_repr import IRBlock, BBExit, UnreachableBlock, IRJump, IRPhi, IRBranch, unreachable_block, IRBinOp, \
     IRCmdBase, IRRet
 from syntax_recorder import FunctionInfo
 from type import InternalPtrType
@@ -7,7 +7,7 @@ from type import InternalPtrType
 
 class BlockChain:
     """Chain of basic blocks, helper class for IRGenerator"""
-    header: BasicBlock | None
+    header: IRBlock | None
     exits: list[BBExit]  # Exits that should be linked to the next chain
     name_hint: str
 
@@ -27,7 +27,7 @@ class BlockChain:
         self.name_hint = name
 
     @staticmethod
-    def link_exits_to_block(exits: list[BBExit], block: BasicBlock):
+    def link_exits_to_block(exits: list[BBExit], block: IRBlock):
         assert not isinstance(block, UnreachableBlock)
         BlockChain.ensure_no_phi(block)
         for exit_ in exits:
@@ -36,20 +36,20 @@ class BlockChain:
             block.predecessors.append(exit_)
 
     @staticmethod
-    def ensure_jump(block: BasicBlock):
+    def ensure_jump(block: IRBlock):
         if len(block.cmds) == 0 or not isinstance(block.cmds[-1], IRJump):
             if len(block.successors) == 1:
                 assert isinstance(block.successors[0], UnreachableBlock)
                 block.add_cmd(IRJump(BBExit(block, 0)))
 
     @staticmethod
-    def ensure_no_phi(block: BasicBlock):
+    def ensure_no_phi(block: IRBlock):
         for cmd in block.cmds:
             if isinstance(cmd, IRPhi):
                 raise AssertionError("Phi node found in block")
 
     @staticmethod
-    def remove_jump(block: BasicBlock):
+    def remove_jump(block: IRBlock):
         if len(block.successors) != 1:
             return False
         assert isinstance(block.successors[0], UnreachableBlock)
@@ -62,7 +62,7 @@ class BlockChain:
         return True
 
     @staticmethod
-    def merge_branches(block: BasicBlock) -> tuple[BBExit, str]:
+    def merge_branches(block: IRBlock) -> tuple[BBExit, str]:
         assert len(block.cmds) > 0
         last = block.cmds[-1]
         assert isinstance(last, IRBranch)
@@ -84,7 +84,7 @@ class BlockChain:
 
     def concentrate(self):
         if self.header is None or len(self.exits) > 2 or not self.try_attach():
-            block = BasicBlock(renamer.get_name(self.name_hint))
+            block = IRBlock(renamer.get_name(self.name_hint))
             self.link_exits_to_block(self.exits, block)
             block.successors = [unreachable_block]
             self.exits = [BBExit(block, 0)]
@@ -207,11 +207,11 @@ class BlockChain:
     def has_exits(self):
         return len(self.exits) > 0
 
-    def collect_blocks(self) -> list[BasicBlock]:
+    def collect_blocks(self) -> list[IRBlock]:
         visited = set()
         result = []
 
-        def dfs(block: BasicBlock):
+        def dfs(block: IRBlock):
             if block in visited:
                 return
             visited.add(block)

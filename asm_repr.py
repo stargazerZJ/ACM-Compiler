@@ -1,4 +1,4 @@
-from ir_repr import BasicBlock, IRFunction
+from ir_repr import IRBlock, IRFunction
 
 
 class ASMCmdBase:

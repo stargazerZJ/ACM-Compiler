@@ -1,4 +1,4 @@
-from ir_repr import BasicBlock, IRFunction, IRPhi
+from ir_repr import IRBlock, IRFunction, IRPhi
 from opt_utils import mark_blocks
 
 
@@ -15,7 +15,7 @@ def collect_defs(function: IRFunction) -> set[str]:
     return defs
 
 
-def collect_uses(defs: set[str], blocks: list[BasicBlock]) -> dict[str, list[tuple[BasicBlock, int]]]:
+def collect_uses(defs: set[str], blocks: list[IRBlock]) -> dict[str, list[tuple[IRBlock, int]]]:
     use_sites = {def_: [] for def_ in defs}
     for block in blocks:
         for cmd_ind, cmd in enumerate(block.cmds):
@@ -25,14 +25,14 @@ def collect_uses(defs: set[str], blocks: list[BasicBlock]) -> dict[str, list[tup
     return use_sites
 
 
-def init_live_out(blocks: list[BasicBlock]):
+def init_live_out(blocks: list[IRBlock]):
     for block in blocks:
         for cmd in block.cmds:
             cmd.live_out = set()
 
 
 def liveness_analysis(function: IRFunction):
-    blocks: list[BasicBlock] = function.blocks
+    blocks: list[IRBlock] = function.blocks
 
     mark_blocks(blocks)
     defs = collect_defs(function)
@@ -40,7 +40,7 @@ def liveness_analysis(function: IRFunction):
     init_live_out(blocks)
     function.var_defs = defs
 
-    def scan_block(block: BasicBlock):
+    def scan_block(block: IRBlock):
         if block in visited: return
         visited.add(block)
         for cmd in block.cmds[::-1]:
@@ -51,7 +51,7 @@ def liveness_analysis(function: IRFunction):
         for pred in block.predecessors:
             scan_block(pred.block)
 
-    def scan_live_in(block: BasicBlock, cmd_ind: int):
+    def scan_live_in(block: IRBlock, cmd_ind: int):
         for cmd in block.cmds[:cmd_ind][::-1]:
             if var in cmd.live_out:
                 return
@@ -62,7 +62,7 @@ def liveness_analysis(function: IRFunction):
         for pred in block.predecessors:
             scan_block(pred.block)
 
-    visited: set[BasicBlock] = set()
+    visited: set[IRBlock] = set()
     for var, uses in use_sites.items():
         visited.clear()
         for use in uses:
