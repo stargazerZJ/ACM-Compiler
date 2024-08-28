@@ -37,23 +37,27 @@ class ASMCmd(ASMCmdBase):
     dest: str
     operands: list[str]
 
-    def __init__(self, op: str, dest: str, operands: list[str], comment: str = None):
+    def __init__(self, op: str, dest: str, operands: list, comment: str = None):
         super().__init__(comment)
         self.op = op
         self.dest = dest
-        self.operands = operands
+        self.operands = [str(operand) for operand in operands]
 
     def riscv(self):
         return self.with_comment(self.op + " " + self.dest + ", " + ", ".join(self.operands))
+
+class ASMMove(ASMCmd):
+    def __init__(self, dest: str, src: str, comment: str = None):
+        super().__init__("mv", dest, [src], comment)
 
 
 class ASMMemOp(ASMCmdBase):
     op: str
     reg: str
-    relative: bool  # relative to sp
+    relative: str | None
     addr: str | int  # offset or symbol
 
-    def __init__(self, op: str, reg: str, relative: bool, addr: str | int, comment: str = None):
+    def __init__(self, op: str, reg: str, addr: str | int, relative: str | None = None, comment: str = None):
         super().__init__(comment)
         self.op = op
         self.reg = reg
@@ -61,7 +65,7 @@ class ASMMemOp(ASMCmdBase):
         self.addr = addr
 
     def riscv(self):
-        if self.relative:
+        if self.relative is not None:
             return self.with_comment(self.op + " " + self.reg + ", " + str(self.addr) + "(sp)")
         return self.with_comment(self.op + " " + self.reg + ", " + self.addr)
 
@@ -87,11 +91,11 @@ class ASMFlowControl(ASMCmdBase):
         return ASMFlowControl("j", [], [dest], comment)
 
     @staticmethod
-    def branch(op: str, operands: list[str], dest: str, comment: str = None):
-        return ASMFlowControl(op, operands, [dest], comment)
+    def branch(op: str, operands: list[str], dest: list[str], comment: str = None):
+        return ASMFlowControl(op, operands, dest, comment)
 
     @staticmethod
-    def ret(self, function: "ASMFunction", comment: str = None):
+    def ret(function: "ASMFunction", comment: str = None):
         return ASMFlowControl("ret", [], [], comment).__setattr__("function", function)
 
     @staticmethod
