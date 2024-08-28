@@ -51,9 +51,9 @@ class ASMMemOp(ASMCmdBase):
     op: str
     reg: str
     relative: bool  # relative to sp
-    addr: str  # offset or symbol
+    addr: str | int  # offset or symbol
 
-    def __init__(self, op: str, reg: str, relative: bool, addr: str, comment: str = None):
+    def __init__(self, op: str, reg: str, relative: bool, addr: str | int, comment: str = None):
         super().__init__(comment)
         self.op = op
         self.reg = reg
@@ -62,7 +62,7 @@ class ASMMemOp(ASMCmdBase):
 
     def riscv(self):
         if self.relative:
-            return self.with_comment(self.op + " " + self.reg + ", " + self.addr + "(sp)")
+            return self.with_comment(self.op + " " + self.reg + ", " + str(self.addr) + "(sp)")
         return self.with_comment(self.op + " " + self.reg + ", " + self.addr)
 
 
@@ -72,6 +72,7 @@ class ASMFlowControl(ASMCmdBase):
     dest: list[str]
     can_fallthrough: bool
     extend_range: bool  # use 3 commands "br, j, j" to enlarge branch range
+    function: "ASMFunction"  # used to get the stack size
 
     def __init__(self, op: str, operands: list[str], dest: list[str], comment: str = None):
         super().__init__(comment)
@@ -90,8 +91,8 @@ class ASMFlowControl(ASMCmdBase):
         return ASMFlowControl(op, operands, [dest], comment)
 
     @staticmethod
-    def ret(self, comment: str = None):
-        return ASMFlowControl("ret", [], [], comment)
+    def ret(self, function: "ASMFunction", comment: str = None):
+        return ASMFlowControl("ret", [], [], comment).__setattr__("function", function)
 
     @staticmethod
     def tail(self, function: str, comment: str = None):
@@ -99,7 +100,11 @@ class ASMFlowControl(ASMCmdBase):
 
     def riscv(self):
         if self.op == "ret":
-            return self.with_comment("ret")
+            if self.function.stack_size != 0:
+                cmd = "addi sp, sp, " + str(self.function.stack_size) + "\n\tret"
+            else:
+                cmd = "ret"
+            return self.with_comment(cmd)
         if self.op == "tail":
             return self.with_comment("tail " + self.dest[0])
         if self.op == "j":
@@ -130,13 +135,13 @@ class ASMCall(ASMCmdBase):
 
 class ASMBlock:
     label: str
-    ir_block: BasicBlock | None
+    ir_block: IRBlock | None
     cmds: list[ASMCmdBase]
     flow_control: ASMFlowControl
     predecessors: list["ASMBlock"]
     successors: list["ASMBlock"]
 
-    def __init__(self, label: str, IRBlock: BasicBlock = None):
+    def __init__(self, label: str, IRBlock: IRBlock = None):
         self.label = label
         self.ir_block = IRBlock
         self.cmds = []
@@ -176,6 +181,7 @@ class ASMFunction:
             block.riscv() for block in self.blocks
         ) + "\n"
 
+
 class ASMGlobal(ASMCmdBase):
     name: str
     value: int
@@ -188,6 +194,7 @@ class ASMGlobal(ASMCmdBase):
     def riscv(self):
         return self.with_comment(f".globl {self.name}\n{self.name}: .word {self.value}")
 
+
 class ASMStr(ASMGlobal):
     def __init__(self, name: str, value: int, comment: str = None):
         super().__init__(name, value, comment)
@@ -199,13 +206,13 @@ class ASMStr(ASMGlobal):
 class ASMModule:
     functions: list[ASMFunction]
     globals: list[ASMGlobal]
-    strs: list[ASMStr]
+    strings: list[ASMStr]
     builtin_functions: str
 
     def __init__(self):
         self.functions = []
         self.globals = []
-        self.strs = []
+        self.strings = []
 
     def set_builtin_functions(self, builtin_functions: str):
         self.builtin_functions = builtin_functions
@@ -216,7 +223,7 @@ class ASMModule:
         asm += "\n\t.data\n"
         asm += "\n".join(global_.riscv() for global_ in self.globals)
         asm += "\n\t.rodata\n"
-        asm += "\n".join(str_.riscv() for str_ in self.strs)
+        asm += "\n".join(str_.riscv() for str_ in self.strings)
         if hasattr(self, "builtin_functions"):
             asm += self.builtin_functions
         return asm

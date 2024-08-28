@@ -2,21 +2,35 @@ import dominator
 from ir_repr import IRFunction, IRPhi
 from opt_utils import build_graph
 
-K = 26 # ra, a0-a7, s0-s11, t2-t6
+K = 26  # ra, a0-a7, s0-s11, t2-t6
+
 
 class AllocationBase:
     pass
 
+
 class AllocationStack(AllocationBase):
     pointer_name: str
+    offset: int
+
     def __init__(self, pointer_name: str):
         self.pointer_name = pointer_name
 
+
 class AllocationRegister(AllocationBase):
     logical_id: int
-    id: int
+    reg: str
+
     def __init__(self, logical_id: int):
         self.logical_id = logical_id
+
+
+class AllocationGlobal(AllocationBase):
+    label: str
+
+    def __init__(self, label: str):
+        self.label = label
+
 
 def get_pointer_name(var: str):
     # "abc.val.1"       -> "abc.ptr"
@@ -24,6 +38,7 @@ def get_pointer_name(var: str):
     # "abc.val.a.val.2" -> "abc.val.a.ptr"
     # "abc"             -> "abc.ptr"
     return var.rsplit(".val", 1)[0] + ".ptr"
+
 
 def choose_spill(vars_: set[str], unassigned: set[str], allocation_table: dict[str, AllocationBase]):
     n = K - len(vars_)
@@ -55,6 +70,7 @@ def spill(function: IRFunction):
     # function.allocation_table = allocation_table
     return unassigned, allocation_table
 
+
 def allocate_registers(function: IRFunction):
     blocks = function.blocks
 
@@ -65,6 +81,18 @@ def allocate_registers(function: IRFunction):
 
     # in_use: set[int] = set()
     vacant: set[int] = set(range(K))
+
+    def allocate(var):
+        if var in unassigned:
+            reg_id = min(vacant)
+            vacant.remove(reg_id)
+            unassigned.remove(var)
+            allocation_table[var] = AllocationRegister(reg_id)
+
+    allocate("ret_addr")
+    for param in function.info.param_ir_names:
+        allocate(param + ".param")
+
     for ind in dfs_order:
         block = blocks[ind]
         for var in block.live_in:
@@ -90,10 +118,7 @@ def allocate_registers(function: IRFunction):
                         if isinstance(reg, AllocationRegister):
                             vacant.add(reg.logical_id)
             for var in cmd.var_def:
-                if var in unassigned:
-                    reg_id = min(vacant)
-                    vacant.remove(reg_id)
-                    unassigned.remove(var)
-                    allocation_table[var] = AllocationRegister(reg_id)
+                allocate(var)
 
     function.allocation_table = allocation_table
+    return allocation_table
