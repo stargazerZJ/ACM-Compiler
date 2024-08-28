@@ -1,4 +1,4 @@
-from ir_repr import BasicBlock
+from ir_repr import BasicBlock, IRFunction
 
 
 class ASMCmdBase:
@@ -130,7 +130,7 @@ class ASMCall(ASMCmdBase):
 
 class ASMBlock:
     label: str
-    IRBlock: BasicBlock | None
+    ir_block: BasicBlock | None
     cmds: list[ASMCmdBase]
     flow_control: ASMFlowControl
     predecessors: list["ASMBlock"]
@@ -138,7 +138,7 @@ class ASMBlock:
 
     def __init__(self, label: str, IRBlock: BasicBlock = None):
         self.label = label
-        self.IRBlock = IRBlock
+        self.ir_block = IRBlock
         self.cmds = []
 
     def add_cmd(self, cmd: ASMCmdBase):
@@ -149,10 +149,74 @@ class ASMBlock:
 
     def riscv(self):
         label = ASMLabel(self.label)
-        if self.IRBlock is not None:
-            label.comment = self.IRBlock.name
+        if self.ir_block is not None:
+            label.comment = self.ir_block.name
         return "\n\t".join(
             [label.riscv()] +
             [cmd.riscv() for cmd in self.cmds] +
             [self.flow_control.riscv()]
         )
+
+
+class ASMFunction:
+    label: str
+    ir_function: IRFunction
+    blocks: list[ASMBlock]
+    stack_size: int  # stack size in bytes
+
+    def __init__(self, label: str, ir_function: IRFunction):
+        self.label = label
+        self.ir_function = ir_function
+        self.blocks = []
+        self.stack_size = 0
+
+    def riscv(self):
+        label = f".globl {self.label}\n{self.label}:"
+        return label + "\n\t".join(
+            block.riscv() for block in self.blocks
+        ) + "\n"
+
+class ASMGlobal(ASMCmdBase):
+    name: str
+    value: int
+
+    def __init__(self, name: str, value: int, comment: str = None):
+        super().__init__(comment)
+        self.name = name
+        self.value = value
+
+    def riscv(self):
+        return self.with_comment(f".globl {self.name}\n{self.name}: .word {self.value}")
+
+class ASMStr(ASMGlobal):
+    def __init__(self, name: str, value: int, comment: str = None):
+        super().__init__(name, value, comment)
+
+    def riscv(self):
+        return self.with_comment(f".globl {self.name}\n{self.name}: .asciz \"{self.value}\"")
+
+
+class ASMModule:
+    functions: list[ASMFunction]
+    globals: list[ASMGlobal]
+    strs: list[ASMStr]
+    builtin_functions: str
+
+    def __init__(self):
+        self.functions = []
+        self.globals = []
+        self.strs = []
+
+    def set_builtin_functions(self, builtin_functions: str):
+        self.builtin_functions = builtin_functions
+
+    def riscv(self):
+        asm = "\t.text\n"
+        asm += "\n".join(function.riscv() for function in self.functions)
+        asm += "\n\t.data\n"
+        asm += "\n".join(global_.riscv() for global_ in self.globals)
+        asm += "\n\t.rodata\n"
+        asm += "\n".join(str_.riscv() for str_ in self.strs)
+        if hasattr(self, "builtin_functions"):
+            asm += self.builtin_functions
+        return asm
