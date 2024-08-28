@@ -36,7 +36,7 @@ get_clang() {
     (echo "clang not found" >&2 && exit 1)
 }
 #CLANG=$(get_clang)
-CLANG=llc-19
+CLANG=llc-18
 
 # Usage
 if [ $# -ne 3 ] && [ $# -ne 4 ]; then

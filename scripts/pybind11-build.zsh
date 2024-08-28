@@ -4,8 +4,8 @@ cd "${0:h}"/../dominator || exit
 
 mkdir -p ./build
 
-export CC=clang-19
-export CXX=clang++-19
+export CC=clang-18
+export CXX=clang++-18
 
 # one notable step for this to work is to install `pybind11` headers. On ubuntu, you may run `sudo apt-get install pybind11-dev
 
