@@ -41,13 +41,9 @@ if [ ! -f $TESTCASE ]; then
 fi
 source $(dirname $0)/utils.bash
 
-# Test whether ravel is installed
-# If not installed, please follow the document at
-# <https://github.com/Engineev/ravel>.
-# Note: If you just follow the steps in the README, you need to put the last
-# line (export PATH="/usr/local/opt/bin:$PATH") in your .bashrc or .zshrc
-# (depending on which shell you are using).
-test_bin ravel
+# Test whether reimu is installed
+export PATH="./testcases:$PATH"
+test_bin reimu
 
 # 1. Make temp directory
 if [ $# -eq 4 ]; then
@@ -101,6 +97,8 @@ Use the following command to clean up the temp directory:
 EOF
 }
 
+cp $TESTCASE "$TEMPDIR/code.mx"
+
 # 2. Compile the testcase with your compiler
 echo "Compiling '$TESTCASE' with your compiler..." >&2
 $COMPILER < $TESTCASE > "$TEMPDIR/output.s"
@@ -125,11 +123,11 @@ if [ $? -ne 0 ]; then
 fi
 EXPECTED_EXIT_CODE=$(grep "ExitCode:" $TESTCASE | awk '{print $2}')
 
-# 4. Execute the code with ravel
-ravel --input-file="$TEMPDIR/test.in" --output-file="$TEMPDIR/test.out" "$TEMPDIR/output.s" $BUILTIN > "$TEMPDIR/ravel_output.txt"
+# 4. Execute the code with reimu
+reimu -i="$TEMPDIR/test.in" -o="$TEMPDIR/test.out" -f="$TEMPDIR/output.s,$BUILTIN" > "$TEMPDIR/ravel_output.txt"
 if [ $? -ne 0 ]; then
     cat << EOF >&2
-Error: Ravel exits with a non-zero value.
+Error: Reimu exits with a non-zero value.
 You may run the following command again to see the error message:
     ravel --input-file='$TEMPDIR/test.in' --output-file='$TEMPDIR/test.out' '$TEMPDIR/output.s' $BUILTIN
 EOF
