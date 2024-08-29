@@ -124,7 +124,7 @@ def mir_builder(block: IRBlock):
                 shl_offset = {"%.arr": "3", "i32" : "2", "ptr" : "2", "i1" :"0"}[cmd.typ.ir_name]
                 if shl_offset != "0":
                     name = renamer.get_name("%.shl")
-                    shl_cmd = IRBinOp(name, "shl", cmd.arr_index, "2", "i32")
+                    shl_cmd = IRBinOp(name, "shl", cmd.arr_index, shl_offset, "i32")
                     if is_imm(cmd.arr_index):
                         li_lhs(shl_cmd, new_list)
                     new_list.append(shl_cmd)
