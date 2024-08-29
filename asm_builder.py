@@ -146,6 +146,10 @@ class ASMBuilder(ASMBuilderUtils):
                 if cmd.op == "add" and cmd.lhs == "0":
                     # special case: li
                     block.add_cmd(ASMCmd("li", dest, [self.parse_imm(cmd.rhs)]))
+                elif cmd.op == "sub" and cmd.lhs == "0":
+                    # special case: neg
+                    _, rhs = self.prepare_operands(block, cmd.lhs, cmd.rhs)
+                    block.add_cmd(ASMCmd("neg", dest, [rhs]))
                 else:
                     lhs, rhs = self.prepare_operands(block, cmd.lhs, cmd.rhs)
                     assert not isinstance(lhs, OperandImm)
@@ -156,9 +160,7 @@ class ASMBuilder(ASMBuilderUtils):
                             op += "i"
                         block.add_cmd(ASMCmd(op, dest, [lhs, rhs]))
                     elif cmd.op == "sub":
-                        if cmd.lhs == "0":
-                            block.add_cmd(ASMCmd("neg", dest, [rhs]))
-                        elif isinstance(rhs, OperandImm):
+                        if isinstance(rhs, OperandImm):
                             block.add_cmd(ASMCmd("addi", dest, [lhs, - rhs.imm]))
                         else:
                             block.add_cmd(ASMCmd("sub", dest, [lhs, rhs]))
@@ -310,7 +312,7 @@ if __name__ == '__main__':
     from opt_mir import mir_builder
     from opt_liveness_analysis import liveness_analysis
 
-    test_file_path = "./testcases/demo/d4.mx"
+    test_file_path = "./testcases/demo/d1.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)
@@ -357,3 +359,6 @@ if __name__ == '__main__':
     asm = asm_builder.build()
     print("ASM building done", file=sys.stderr)
     print(asm.riscv())
+    with open("output-asm.s", "w") as f:
+        print(ir.llvm(), file=f)
+        print("MIR output to" + "output.ll", file=sys.stderr)
