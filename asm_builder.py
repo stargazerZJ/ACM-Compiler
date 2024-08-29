@@ -194,7 +194,7 @@ class ASMBuilder(ASMBuilderUtils):
                 lhs, rhs = self.prepare_operands(block, cmd.lhs, cmd.rhs)
                 assert not isinstance(lhs, OperandImm)
                 assert not isinstance(rhs, OperandImm) or rhs.is_lower()
-                if cmd.rhs == "0":
+                if isinstance(rhs, OperandImm) and rhs.imm == 0:
                     assert cmd.op in ["slt", "sgt", "ne", "eq"]
                     op = {"slt": "sltz", "sgt": "sgtz", "ne": "snez", "eq": "seqz"}[cmd.op]
                     block.add_cmd(ASMCmd(op, dest, [lhs]))
@@ -342,7 +342,7 @@ if __name__ == '__main__':
 
     if len(sys.argv) == 1:
         # test_file_path = "./testcases/demo/d7.mx"
-        test_file_path = "./testcases/codegen/e5.mx"
+        test_file_path = "./testcases/codegen/t18.mx"
         input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     else:
         input_stream = antlr4.StdinStream(encoding='utf-8')
