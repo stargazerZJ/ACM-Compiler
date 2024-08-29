@@ -210,9 +210,10 @@ class ASMBuilder(ASMBuilderUtils):
                 # TODO: load/store with offset
                 dest, store_cmd = self.prepare_dest(cmd.dest)
                 if cmd.src in self.allocation_table:
+                    width = "lb" if cmd.typ == "i1" else "lw"
                     addr, _ = self.prepare_operand(block, cmd.src, "t0")
                     assert not isinstance(addr, OperandImm)
-                    block.add_cmd(ASMMemOp("lw", dest, 0, str(addr)))
+                    block.add_cmd(ASMMemOp(width, dest, 0, str(addr)))
                 else:
                     addr = self.global_symbol_table[cmd.src]
                     block.add_cmd(ASMMemOp("lw", dest, addr.label))
@@ -220,10 +221,11 @@ class ASMBuilder(ASMBuilderUtils):
                     block.add_cmd(store_cmd)
             elif isinstance(cmd, IRStore):
                 if cmd.dest in self.allocation_table:
+                    width = "sb" if cmd.typ == "i1" else "sw"
                     value, pos = self.prepare_operands(block, cmd.src, cmd.dest)
                     assert not isinstance(value, OperandImm)
                     assert not isinstance(pos, OperandImm)
-                    block.add_cmd(ASMMemOp("sw", str(value), 0, str(pos)))
+                    block.add_cmd(ASMMemOp(width, str(value), 0, str(pos)))
                 else:
                     value, tmp_used = self.prepare_operand(block, cmd.src, "t0")
                     tmp_reg = "t1" if tmp_used else "t0"
