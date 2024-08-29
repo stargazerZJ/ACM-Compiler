@@ -215,11 +215,15 @@ class ASMGlobal(ASMCmdBase):
 
 
 class ASMStr(ASMGlobal):
-    def __init__(self, name: str, value: int, comment: str = None):
+    value: str
+    def __init__(self, name: str, value: str, comment: str = None):
+        value = value.rstrip("\0")
         super().__init__(name, value, comment)
 
     def riscv(self):
-        return self.with_comment(f".globl {self.name}\n{self.name}: .asciz \"{self.value}\"")
+        value = (self.value.replace("\\", "\\5C").replace("\n", "\\0A")
+                 .replace("\"", "\\22"))
+        return self.with_comment(f".globl {self.name}\n{self.name}: .asciz \"{value}\"")
 
 
 class ASMModule:
