@@ -207,16 +207,27 @@ class ASMBuilder(ASMBuilderUtils):
             elif isinstance(cmd, IRLoad):
                 # TODO: load/store with offset
                 dest, store_cmd = self.prepare_dest(cmd.dest)
-                addr, _ = self.prepare_operand(block, cmd.src, "t0")
-                assert not isinstance(addr, OperandImm)
-                block.add_cmd(ASMMemOp("lw", dest, 0, str(addr)))
+                if cmd.src in self.allocation_table:
+                    addr, _ = self.prepare_operand(block, cmd.src, "t0")
+                    assert not isinstance(addr, OperandImm)
+                    block.add_cmd(ASMMemOp("lw", dest, 0, str(addr)))
+                else:
+                    addr = self.global_symbol_table[cmd.src]
+                    block.add_cmd(ASMMemOp("lw", dest, addr.label))
                 if store_cmd is not None:
                     block.add_cmd(store_cmd)
             elif isinstance(cmd, IRStore):
-                value, pos = self.prepare_operands(block, cmd.dest, cmd.src)
-                assert not isinstance(value, OperandImm)
-                assert not isinstance(pos, OperandImm)
-                block.add_cmd(ASMMemOp("sw", str(value), 0, str(pos)))
+                if cmd.dest in self.allocation_table:
+                    value, pos = self.prepare_operands(block, cmd.src, cmd.dest)
+                    assert not isinstance(value, OperandImm)
+                    assert not isinstance(pos, OperandImm)
+                    block.add_cmd(ASMMemOp("sw", str(value), 0, str(pos)))
+                else:
+                    value, tmp_used = self.prepare_operand(block, cmd.src, "t0")
+                    tmp_reg = "t1" if tmp_used else "t0"
+                    assert not isinstance(value, OperandImm)
+                    pos = self.global_symbol_table[cmd.dest]
+                    block.add_cmd(ASMMemOp("sw", str(value), pos.label, tmp_reg=tmp_reg))
             elif isinstance(cmd, IRJump):
                 block.set_flow_control(ASMFlowControl.jump(block))
             elif isinstance(cmd, IRBranch):
@@ -326,7 +337,7 @@ if __name__ == '__main__':
 
     if len(sys.argv) == 1:
         # test_file_path = "./testcases/demo/d7.mx"
-        test_file_path = "./testcases/codegen/t1.mx"
+        test_file_path = "./testcases/codegen/e10.mx"
         input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     else:
         input_stream = antlr4.StdinStream(encoding='utf-8')
