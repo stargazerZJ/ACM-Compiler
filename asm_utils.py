@@ -127,10 +127,10 @@ class ASMBuilderUtils:
             if var in self.allocation_table:
                 alloc = self.allocation_table[var]
                 if isinstance(alloc, AllocationRegister):
-                    var_from.append(OperandReg(AllocationRegister.reg))
+                    var_from.append(OperandReg(alloc.reg))
                 else:
                     alloc = cast(AllocationStack, alloc)
-                    var_from.append(OperandStack(AllocationStack.offset))
+                    var_from.append(OperandStack(alloc.offset))
             elif var in self.global_symbol_table:
                 alloc = self.global_symbol_table[var]
                 var_from.append(OperandGlobal(alloc.label))
