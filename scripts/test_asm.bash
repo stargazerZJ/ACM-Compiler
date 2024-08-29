@@ -129,7 +129,7 @@ if [ $? -ne 0 ]; then
     cat << EOF >&2
 Error: Reimu exits with a non-zero value.
 You may run the following command again to see the error message:
-    ravel --input-file='$TEMPDIR/test.in' --output-file='$TEMPDIR/test.out' '$TEMPDIR/output.s' $BUILTIN
+    ./reimu -i="$TEMPDIR/test.in" -o="$TEMPDIR/test.out" -f="$TEMPDIR/output.s,$BUILTIN" > "$TEMPDIR/ravel_output.txt"
 EOF
     print_temp_dir
     exit 1
