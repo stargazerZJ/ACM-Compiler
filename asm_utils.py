@@ -64,10 +64,9 @@ class ASMBuilderUtils:
     callee_reg: list[str]
     allocation_table: dict[str, AllocationBase]
     def __init__(self):
-        pass
         # self.block_namer = BlockNamer(name)
         # self.current_function = func
-        # self.global_symbol_table = {}
+        self.global_symbol_table = {}
         # self.callee_reg = list(callee_reg.intersection(set(
         #     [f"s{i}" for i in range(12)]
         # )))
