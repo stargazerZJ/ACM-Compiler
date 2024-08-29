@@ -123,7 +123,7 @@ class ASMBuilder(ASMBuilderUtils):
         func.blocks = blocks
 
         # debug
-        self.print_allocation_table()
+        self.print_allocation_info()
 
         return func
 

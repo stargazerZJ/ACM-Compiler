@@ -267,8 +267,9 @@ class ASMBuilderUtils:
 
         return cmds
 
-    def print_allocation_table(self, file=sys.stderr):
-        print(f"=== Allocation Table for {self.current_function.label} ===", file=file)
+    def print_allocation_info(self, file=sys.stderr):
+        print(f"=== Allocation Into for {self.current_function.label} ===", file=file)
+        print(f"Stack size: {self.current_function.stack_size}", file=file)
         for ir_name, alloc in self.allocation_table.items():
             print(f"{ir_name: <20} -> {alloc}", file=file)
         print("\n", file=file)
