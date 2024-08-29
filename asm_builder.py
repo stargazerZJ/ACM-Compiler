@@ -130,7 +130,7 @@ class ASMBuilder(ASMBuilderUtils):
             asm_block.predecessors = [asm_blocks[pred.block.index] for pred in ir_block.predecessors]
             asm_block.successors = [asm_blocks[succ.index] for succ in ir_block.successors]
             if len(asm_block.successors) == 2:
-                branch = ir_block.cmds[:-1]
+                branch = ir_block.cmds[-1]
                 assert isinstance(branch, IRBranch)
                 if branch.true_dest.idx == 0:
                     asm_block.successors = [asm_block.successors[1], asm_block.successors[0]]
