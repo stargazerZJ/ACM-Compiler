@@ -1,3 +1,5 @@
+from typing import Union
+
 from ir_repr import IRBlock, IRFunction
 
 
@@ -46,6 +48,7 @@ class ASMCmd(ASMCmdBase):
     def riscv(self):
         return self.with_comment(self.op + " " + self.dest + ", " + ", ".join(self.operands))
 
+
 class ASMMove(ASMCmd):
     def __init__(self, dest: str, src: str, comment: str = None):
         super().__init__("mv", dest, [src], comment)
@@ -73,34 +76,35 @@ class ASMMemOp(ASMCmdBase):
 class ASMFlowControl(ASMCmdBase):
     op: str  # branch type (if exists)
     operands: list[str]
-    dest: list[str]
+    block: Union["ASMBlock", None]  # destinations are recorded here
     can_fallthrough: bool
     extend_range: bool  # use 3 commands "br, j, j" to enlarge branch range
     function: "ASMFunction"  # used to get the stack size
+    tail_function: str
 
-    def __init__(self, op: str, operands: list[str], dest: list[str], comment: str = None):
+    def __init__(self, op: str, operands: list[str], block: Union["ASMBlock", None], comment: str = None):
         super().__init__(comment)
         self.op = op
         self.operands = operands
-        self.dest = dest
+        self.block = block
         self.can_fallthrough = False
         self.extend_range = False
 
     @staticmethod
-    def jump(dest: str, comment: str = None):
-        return ASMFlowControl("j", [], [dest], comment)
+    def jump(block: "ASMBlock", comment: str = None):
+        return ASMFlowControl("j", [], block, comment)
 
     @staticmethod
-    def branch(op: str, operands: list[str], dest: list[str], comment: str = None):
-        return ASMFlowControl(op, operands, dest, comment)
+    def branch(op: str, operands: list[str], block: "ASMBlock", comment: str = None):
+        return ASMFlowControl(op, operands, block, comment)
 
     @staticmethod
     def ret(function: "ASMFunction", comment: str = None):
-        return ASMFlowControl("ret", [], [], comment).__setattr__("function", function)
+        return ASMFlowControl("ret", [], None, comment).__setattr__("function", function)
 
     @staticmethod
     def tail(self, function: str, comment: str = None):
-        return ASMFlowControl("tail", [], [function], comment)
+        return ASMFlowControl("tail", [], None, comment).__setattr__("tail_function", function)
 
     def riscv(self):
         if self.op == "ret":
@@ -110,20 +114,22 @@ class ASMFlowControl(ASMCmdBase):
                 cmd = "ret"
             return self.with_comment(cmd)
         if self.op == "tail":
-            return self.with_comment("tail " + self.dest[0])
+            return self.with_comment("tail " + self.tail_function)
         if self.op == "j":
             if self.can_fallthrough:
-                return self.with_comment("j " + self.dest[0])
+                return self.with_comment("j " + self.block.successors[0].label)
             else:
                 return self.with_comment("")
         # branch
+        dest = (self.block.successors[0].label, self.block.successors[1].label)
+        # (false_dest, true_dest)
         if self.extend_range:
             return self.with_comment(self.op + " " + ", ".join(self.operands) + ", .+4" +
-                                     "\n\tj " + self.dest[0] + "\n1:\tj " + self.dest[1])
+                                     "\n\tj " + dest[0] + "\n1:\tj " + dest[1])
         elif self.can_fallthrough:
-            return self.with_comment(self.op + " " + ", ".join(self.operands) + ", " + self.dest[1])
-        return self.with_comment(self.op + " " + ", ".join(self.operands) + ", " + self.dest[1] +
-                                 "\n\tj " + self.dest[1])
+            return self.with_comment(self.op + " " + ", ".join(self.operands) + ", " + dest[1])
+        return self.with_comment(self.op + " " + ", ".join(self.operands) + ", " + dest[1] +
+                                 "\n\tj " + dest[0])
 
 
 class ASMCall(ASMCmdBase):
@@ -224,9 +230,9 @@ class ASMModule:
     def riscv(self):
         asm = "\t.text\n"
         asm += "\n".join(function.riscv() for function in self.functions)
-        asm += "\n\t.data\n"
+        asm += "\n\t.data\n\t.p2align 2\n"
         asm += "\n".join(global_.riscv() for global_ in self.globals)
-        asm += "\n\t.rodata\n"
+        asm += "\n\t.rodata\n\t.p2align 2\n"
         asm += "\n".join(str_.riscv() for str_ in self.strings)
         if hasattr(self, "builtin_functions"):
             asm += self.builtin_functions

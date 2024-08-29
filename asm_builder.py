@@ -1,5 +1,3 @@
-
-
 from asm_regalloc import AllocationBase, AllocationGlobal, allocate_registers, AllocationStack, AllocationRegister
 from asm_repr import ASMGlobal, ASMFunction, ASMStr, ASMModule, ASMBlock, ASMCmd, ASMMemOp, ASMCmdBase, ASMFlowControl, \
     ASMMove
@@ -125,7 +123,7 @@ class ASMBuilder:
                 self.used_reg.add(alloc.reg)
 
         blocks = [self.build_block(block) for block in ir_func.blocks]
-        self.link_blocks(blocks, ir_func) # and write jump destinations
+        self.link_blocks(blocks, ir_func)  # and write jump destinations
         self.eliminate_phi(blocks, ir_func)
 
         func.stack_size += self.max_saved_reg * 4
@@ -144,6 +142,58 @@ class ASMBuilder:
         # TODO: rearrange blocks and relax branch offsets
         func.blocks = blocks
         return func
+
+    @staticmethod
+    def link_blocks(asm_blocks: list[ASMBlock], func: IRFunction):
+        ir_blocks = func.blocks
+        for ir_block, asm_block in zip(ir_blocks, asm_blocks):
+            ir_block: IRBlock
+            asm_block: ASMBlock
+            asm_block.predecessors = [asm_blocks[pred.block.index] for pred in ir_block.predecessors]
+            asm_block.successors = [asm_blocks[succ.index] for succ in ir_block.successors]
+            if len(asm_block.successors) == 2:
+                branch = ir_block.cmds[:-1]
+                assert isinstance(branch, IRBranch)
+                if branch.true_dest.idx == 0:
+                    asm_block.successors = [asm_block.successors[1], asm_block.successors[0]]
+
+    def prepare_dest(self, dest: str) -> tuple[str, ASMMemOp | None]:
+        tmp_reg = "t0"
+        if dest in self.allocation_table:
+            alloc = self.allocation_table[dest]
+            if isinstance(alloc, AllocationRegister):
+                return alloc.reg, None
+            else:
+                store_cmd = ASMMemOp("sw", tmp_reg, alloc.offset, "sp")
+                return tmp_reg, store_cmd
+        else:
+            alloc = self.global_symbol_table[dest]
+            # `sw rd, symbol` is a pseudo instruction that will be expanded to lui and sw
+            store_cmd = (ASMMemOp("sw", tmp_reg, alloc.label))
+            return tmp_reg, store_cmd
+
+    def prepare_operand(self, block: ASMBlock, operand: str, tmp_reg: str) -> tuple[OperandBase, bool]:
+        if operand in self.allocation_table:
+            alloc = self.allocation_table[operand]
+            if isinstance(alloc, AllocationRegister):
+                return OperandReg(alloc.reg), False
+            else:
+                block.add_cmd(ASMMemOp("lw", tmp_reg, alloc.offset, "sp"))
+                return OperandReg(tmp_reg), True
+        else:
+            if operand in self.global_symbol_table:
+                alloc = self.global_symbol_table[operand]
+                # `lw rd, symbol` is a pseudo instruction that will be expanded to lui and lw
+                block.add_cmd(ASMMemOp("lw", tmp_reg, alloc.label))
+                return OperandReg(tmp_reg), True
+            else:
+                return OperandImm(self.parse_imm(operand)), False
+
+    def prepare_operands(self, block: ASMBlock, lhs: str, rhs: str) -> tuple[OperandBase, OperandBase]:
+        lhs_operand, tmp_used = self.prepare_operand(block, lhs, "t0")
+        tmp_reg = "t1" if tmp_used else "t0"
+        rhs_operand, _ = self.prepare_operand(block, rhs, tmp_reg)
+        return lhs_operand, rhs_operand
 
     def build_block(self, ir_block: IRBlock) -> ASMBlock:
         block = ASMBlock(self.block_namer.get(), ir_block)
@@ -207,55 +257,17 @@ class ASMBuilder:
                 value, pos = self.prepare_operands(block, cmd.dest, cmd.src)
                 block.add_cmd(ASMMemOp("sw", str(value), str(pos)))
             elif isinstance(cmd, IRJump):
-                block.set_flow_control(ASMFlowControl.jump("unknown"))
+                block.set_flow_control(ASMFlowControl.jump(block))
             elif isinstance(cmd, IRBranch):
                 cond, _ = self.prepare_operand(block, cmd.cond, "t0")
                 assert isinstance(cond, OperandReg)
-                block.set_flow_control(ASMFlowControl.branch("beqz", [str(cond)], ["unknown", "unknown"]))
+                block.set_flow_control(ASMFlowControl.branch("beqz", [str(cond)], block))
             elif isinstance(cmd, IRRet):
                 value, _ = self.prepare_operand(block, cmd.value, "a0")
                 block.add_cmd(ASMMove("a0", str(value)))
                 # TODO: restore callee-saved registers
-                block.set_flow_control(ASMFlowControl.ret(self.current_function)) # includes `addi sp`
+                block.set_flow_control(ASMFlowControl.ret(self.current_function))  # includes `addi sp`
             # There is no alloca nor gep in the input IR
             # TODO: call
             raise NotImplementedError(f"Unsupported command: {cmd}")
         return block
-
-    def prepare_dest(self, dest: str) -> tuple[str, ASMMemOp | None]:
-        tmp_reg = "t0"
-        if dest in self.allocation_table:
-            alloc = self.allocation_table[dest]
-            if isinstance(alloc, AllocationRegister):
-                return alloc.reg, None
-            else:
-                store_cmd = ASMMemOp("sw", tmp_reg, alloc.offset, "sp")
-                return tmp_reg, store_cmd
-        else:
-            alloc = self.global_symbol_table[dest]
-            # `sw rd, symbol` is a pseudo instruction that will be expanded to lui and sw
-            store_cmd = (ASMMemOp("sw", tmp_reg, alloc.label))
-            return tmp_reg, store_cmd
-
-    def prepare_operand(self, block: ASMBlock, operand: str, tmp_reg: str) -> tuple[OperandBase, bool]:
-        if operand in self.allocation_table:
-            alloc = self.allocation_table[operand]
-            if isinstance(alloc, AllocationRegister):
-                return OperandReg(alloc.reg), False
-            else:
-                block.add_cmd(ASMMemOp("lw", tmp_reg, alloc.offset, "sp"))
-                return OperandReg(tmp_reg), True
-        else:
-            if operand in self.global_symbol_table:
-                alloc = self.global_symbol_table[operand]
-                # `lw rd, symbol` is a pseudo instruction that will be expanded to lui and lw
-                block.add_cmd(ASMMemOp("lw", tmp_reg, alloc.label))
-                return OperandReg(tmp_reg), True
-            else:
-                return OperandImm(self.parse_imm(operand)), False
-
-    def prepare_operands(self, block: ASMBlock, lhs: str, rhs: str) -> tuple[OperandBase, OperandBase]:
-        lhs_operand, tmp_used = self.prepare_operand(block, lhs, "t0")
-        tmp_reg = "t1" if tmp_used else "t0"
-        rhs_operand, _ = self.prepare_operand(block, rhs, tmp_reg)
-        return lhs_operand, rhs_operand
