@@ -143,10 +143,10 @@ class ASMBuilderUtils:
         for var in variables:
             alloc = self.allocation_table[var]
             if isinstance(alloc, AllocationRegister):
-                var_to.append(OperandReg(AllocationRegister.reg))
+                var_to.append(OperandReg(alloc.reg))
             else:
                 alloc = cast(AllocationStack, alloc)
-                var_to.append(OperandStack(AllocationStack.offset))
+                var_to.append(OperandStack(alloc.offset))
         return var_to
 
     def prepare_dest(self, dest: str) -> tuple[str, ASMMemOp | None]:
