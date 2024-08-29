@@ -341,3 +341,64 @@ class ASMBuilder(ASMBuilderUtils):
                     new_blocks.append(new_block)
                 else:
                     pred.add_cmd(*self.rearrange_variables(phi_from, phi_to, "t0"))
+
+if __name__ == '__main__':
+    from antlr_generated.MxLexer import MxLexer
+    from antlr_generated.MxParser import MxParser
+    from syntax_checker import SyntaxChecker
+    import sys
+    import antlr4
+    from syntax_error import MxSyntaxError, ThrowingErrorListener
+    from ir_builder import IRBuilder
+    from ir_repr import IRModule
+    from opt_mem2reg import mem2reg
+    from opt_mir import mir_builder
+    from opt_liveness_analysis import liveness_analysis
+
+    # test_file_path = "./testcases/codegen/t71.mx"
+    # input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
+    input_stream = antlr4.StdinStream(encoding='utf-8')
+    lexer = MxLexer(input_stream)
+    parser = MxParser(antlr4.CommonTokenStream(lexer))
+
+    # Attach error listeners
+    error_listener = ThrowingErrorListener()
+    lexer.removeErrorListeners()
+    lexer.addErrorListener(error_listener)
+    parser.removeErrorListeners()
+    parser.addErrorListener(error_listener)
+
+    try:
+        tree = parser.file_Input()
+        checker = SyntaxChecker()
+        recorder = checker.visit(tree)
+        print("Syntax check passed", file=sys.stderr)
+    except MxSyntaxError as e:
+        print(f"Syntax check failed: {e}", file=sys.stderr)
+        print(e.standardize())
+        exit(1)
+
+    ir_builder = IRBuilder(recorder)
+    ir: IRModule = ir_builder.visit(tree)
+    print("IR building done", file=sys.stderr)
+
+    ir.for_each_function_definition(mem2reg)
+
+    print("M2R done", file=sys.stderr)
+    with open("output.ll", "w") as f:
+        print(ir.llvm(), f)
+        print("IR output to" + "output.ll")
+
+    ir.for_each_block(mir_builder)
+    print("MIR done", file=sys.stderr)
+    with open("output-mir.ll", "w") as f:
+        print(ir.llvm(), f)
+        print("MIR output to" + "output.ll")
+
+    ir.for_each_function_definition(liveness_analysis)
+    print("Liveness analysis done", file=sys.stderr)
+
+    asm_builder = ASMBuilder(ir)
+    asm = asm_builder.build()
+    print("ASM building done", file=sys.stderr)
+    print(asm.riscv())
