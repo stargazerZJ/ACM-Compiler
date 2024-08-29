@@ -105,11 +105,15 @@ class ASMFlowControl(ASMCmdBase):
 
     @staticmethod
     def ret(function: "ASMFunction", comment: str = None):
-        return ASMFlowControl("ret", [], None, comment).__setattr__("function", function)
+        ret = ASMFlowControl("ret", [], None, comment)
+        ret.__setattr__("function", function)
+        return ret
 
     @staticmethod
     def tail(self, function: str, comment: str = None):
-        return ASMFlowControl("tail", [], None, comment).__setattr__("tail_function", function)
+        tail = ASMFlowControl("tail", [], None, comment)
+        tail.__setattr__("tail_function", function)
+        return tail
 
     def riscv(self):
         if self.op == "ret":
