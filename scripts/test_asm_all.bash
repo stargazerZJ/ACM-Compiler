@@ -37,26 +37,27 @@ if [ ${CODEGEN_DIR:0:1} != "/" ]; then
     CODEGEN_DIR="$CODEGEN_DIR/"
 fi
 
-if [ ! -x ${CODEGEN_DIR}scripts/test_asm.bash ]; then
-    echo "Error: ${CODEGEN_DIR}scripts/test_asm.bash does not exist or is not executable." >&2
+if [ ! -x "$(dirname "$0")"/test_asm.bash ]; then
+    echo "Error: $(dirname "$0")/test_asm.bash does not exist or is not executable." >&2
     exit 1
 elif [ ! -f ${CODEGEN_DIR}judgelist.txt ]; then
     echo "Error: ${CODEGEN_DIR}judgelist.txt not found." >&2
     exit 1
 fi
 
-TEMPDIR="$(mktemp -d -p /tmp mxc.XXXXXXXXXX)"
+TEMPDIR="$(mktemp -d -p ./tmp mxc.XXXXXXXXXX)"
 if [ $? -ne 0 ]; then
     echo "Error: Failed to create temp directory." >&2
     exit 1
 fi
+echo "Temp directory: $TEMPDIR"
 
 FAILED_TESTCASE=""
 # judge_one_testcase <testcase> <name>
 judge_one_testcase() {
     local TESTDIR="$TEMPDIR/$2"
     mkdir -p $TESTDIR
-    ${CODEGEN_DIR}scripts/test_asm.bash "$COMPILER" $1 $BUILTIN $TESTDIR > /dev/null 2>&1
+    "$(dirname "$0")"/test_asm.bash "$COMPILER" $1 $BUILTIN $TESTDIR > /dev/null 2>&1
     if [ $? -ne 0 ]; then
         FAILED_TESTCASE="$2"
         print_red_msg "Fail to pass testcase: '$1'."
