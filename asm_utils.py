@@ -1,8 +1,59 @@
 from typing import cast
 
-from asm_builder import BlockNamer, OperandReg, OperandStack, OperandGlobal, OperandImm, OperandBase
 from asm_regalloc import AllocationRegister, AllocationStack, AllocationGlobal, AllocationBase
 from asm_repr import ASMBlock, ASMMemOp, ASMCmdBase, ASMCmd, ASMMove, ASMFunction
+
+
+class BlockNamer:
+    def __init__(self, func_name: str):
+        self.counter = 0
+        self.func_name = func_name
+
+    def get(self) -> str:
+        name = f".L-{self.func_name}-{self.counter}"
+        self.counter += 1
+        return name
+
+
+class OperandBase:
+    pass
+
+
+class OperandReg(OperandBase):
+    reg: str
+
+    def __init__(self, reg: str):
+        self.reg = reg
+
+    def __str__(self):
+        return self.reg
+
+
+class OperandImm(OperandBase):
+    imm: int
+
+    def __init__(self, imm: int):
+        self.imm = imm
+
+    def is_lower(self):
+        return - 2048 <= self.imm < 2048
+
+    def __str__(self):
+        return str(self.imm)
+
+
+class OperandStack(OperandBase):
+    offset: int
+
+    def __init__(self, offset: int):
+        self.offset = offset
+
+
+class OperandGlobal(OperandBase):
+    label: str
+
+    def __init__(self, label: str):
+        self.label = label
 
 
 class ASMBuilderUtils:

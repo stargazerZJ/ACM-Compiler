@@ -1,61 +1,9 @@
-from asm_regalloc import AllocationBase, AllocationGlobal, allocate_registers, AllocationStack, AllocationRegister
+from asm_regalloc import AllocationGlobal, allocate_registers, AllocationStack, AllocationRegister
 from asm_repr import ASMGlobal, ASMFunction, ASMStr, ASMModule, ASMBlock, ASMCmd, ASMMemOp, ASMFlowControl, \
     ASMMove, ASMCall
-from asm_utils import ASMBuilderUtils
+from asm_utils import ASMBuilderUtils, BlockNamer, OperandReg, OperandImm
 from ir_repr import IRGlobal, IRModule, IRFunction, IRStr, IRBlock, IRPhi, IRBinOp, IRIcmp, IRLoad, IRStore, \
     IRJump, IRBranch, IRRet, IRCall
-
-
-class BlockNamer:
-    def __init__(self, func_name: str):
-        self.counter = 0
-        self.func_name = func_name
-
-    def get(self) -> str:
-        name = f".L-{self.func_name}-{self.counter}"
-        self.counter += 1
-        return name
-
-
-class OperandBase:
-    pass
-
-
-class OperandReg(OperandBase):
-    reg: str
-
-    def __init__(self, reg: str):
-        self.reg = reg
-
-    def __str__(self):
-        return self.reg
-
-
-class OperandImm(OperandBase):
-    imm: int
-
-    def __init__(self, imm: int):
-        self.imm = imm
-
-    def is_lower(self):
-        return - 2048 <= self.imm < 2048
-
-    def __str__(self):
-        return str(self.imm)
-
-
-class OperandStack(OperandBase):
-    offset: int
-
-    def __init__(self, offset: int):
-        self.offset = offset
-
-
-class OperandGlobal(OperandBase):
-    label: str
-
-    def __init__(self, label: str):
-        self.label = label
 
 
 # def function_param_generator() -> OperandReg | OperandStack:
@@ -355,9 +303,9 @@ if __name__ == '__main__':
     from opt_mir import mir_builder
     from opt_liveness_analysis import liveness_analysis
 
-    # test_file_path = "./testcases/codegen/t71.mx"
-    # input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
-    input_stream = antlr4.StdinStream(encoding='utf-8')
+    test_file_path = "./testcases/demo/d4.mx"
+    input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
+    # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)
     parser = MxParser(antlr4.CommonTokenStream(lexer))
 
