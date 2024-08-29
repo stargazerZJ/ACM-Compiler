@@ -196,7 +196,7 @@ class ASMFunction:
 
     def riscv(self):
         label = f".globl {self.label}\n{self.label}:"
-        return label + "\n\t".join(
+        return label + "\n".join(
             block.riscv() for block in self.blocks
         ) + "\n"
 
