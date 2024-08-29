@@ -2,7 +2,7 @@
 
 cd "${0:h}"/.. || exit
 
-mkdir -p ../clang_generated
+mkdir -p clang_generated
 
 clang-18 -emit-llvm \
   -fno-builtin-printf -fno-builtin-memcpy -fno-builtin-malloc -fno-builtin-strlen\
