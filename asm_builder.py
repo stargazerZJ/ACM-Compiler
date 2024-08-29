@@ -13,9 +13,9 @@ from ir_repr import IRGlobal, IRModule, IRFunction, IRStr, IRBlock, IRPhi, IRBin
 #         yield OperandStack(i * 4)
 
 
-
 class ASMBuilder(ASMBuilderUtils):
     ir_module: IRModule
+
     # global_symbol_table: dict[str, AllocationGlobal]
     # max_saved_reg: int
     # block_namer: BlockNamer
@@ -98,7 +98,8 @@ class ASMBuilder(ASMBuilderUtils):
         header_block = ASMBlock(header_name)
 
         param_from = [OperandReg("ra")] + self.prepare_params(len(ir_func.info.param_ir_names))
-        param_to = self.prepare_var_to(["ret_addr"] + ir_func.info.param_ir_names)
+        param_to = self.prepare_var_to(["ret_addr"] + [
+            param + ".param" for param in ir_func.info.param_ir_names])
         header_block.add_cmd(*self.rearrange_variables(param_from, param_to, "t0"))
         header_block.add_cmd(*self.save_registers(self.callee_reg, func.stack_size))
 
@@ -256,7 +257,7 @@ class ASMBuilder(ASMBuilderUtils):
                     block.add_cmd(ASMCmd("addi", "sp", ["sp", str(-stack_delta)]))
 
                 param_to = self.prepare_params(param_count)
-                param_from = self.prepare_var_from(cmd.func.param_ir_names)
+                param_from = self.prepare_var_from(cmd.var_use)
                 block.add_cmd(*self.rearrange_variables(param_from, param_to, "t0"))
 
                 block.add_cmd(ASMCall(func_name))
@@ -264,8 +265,9 @@ class ASMBuilder(ASMBuilderUtils):
                 if stack_delta > 0:
                     block.add_cmd(ASMCmd("addi", "sp", ["sp", str(stack_delta)]))
 
-                result_to = self.prepare_var_to(cmd.var_def)
-                block.add_cmd(*self.rearrange_variables([OperandReg("a0")], result_to, "t0"))
+                if cmd.dest:
+                    result_to = self.prepare_var_to(cmd.var_def)
+                    block.add_cmd(*self.rearrange_variables([OperandReg("a0")], result_to, "t0"))
 
                 self.restore_registers(caller_regs, self.current_function.stack_size)
             # There is no alloca nor gep in the input IR
@@ -304,6 +306,7 @@ class ASMBuilder(ASMBuilderUtils):
                     pred.add_cmd(*self.rearrange_variables(phi_from, phi_to, "t0"))
         asm_blocks.extend(new_blocks)
 
+
 if __name__ == '__main__':
     from antlr_generated.MxLexer import MxLexer
     from antlr_generated.MxParser import MxParser
@@ -317,7 +320,7 @@ if __name__ == '__main__':
     from opt_mir import mir_builder
     from opt_liveness_analysis import liveness_analysis
 
-    test_file_path = "./testcases/demo/d1.mx"
+    test_file_path = "./testcases/demo/d6.mx"
     input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)
