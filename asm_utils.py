@@ -3,6 +3,7 @@ from typing import cast
 
 from asm_regalloc import AllocationRegister, AllocationStack, AllocationGlobal, AllocationBase
 from asm_repr import ASMBlock, ASMMemOp, ASMCmdBase, ASMCmd, ASMMove, ASMFunction
+from opt_mem2reg import IRUndefinedValue
 
 
 class BlockNamer:
@@ -80,6 +81,8 @@ class ASMBuilderUtils:
         """does not check 12-bit overflow"""
         if value in ["true", "false", "null"]:
             value = 0 if value != "true" else 1
+        if isinstance(value, IRUndefinedValue):
+            return 0
         return int(value)
 
     @staticmethod
