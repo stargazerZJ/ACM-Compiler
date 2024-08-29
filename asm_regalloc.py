@@ -51,7 +51,9 @@ def get_pointer_name(var: str):
 def choose_spill(vars_: set[str], unassigned: set[str], allocation_table: dict[str, AllocationBase]):
     n = len(vars_) - K
     for _ in range(n):
-        var = vars_.pop()
+        # var = vars_.pop()
+        var = max(vars_)
+        vars_.remove(var)
         spill_to_stack(var, unassigned, allocation_table)
 
 
