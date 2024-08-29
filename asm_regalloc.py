@@ -91,7 +91,11 @@ def allocate_registers(function: IRFunction):
 
     allocate("ret_addr")
     for param in function.info.param_ir_names:
-        allocate(param + ".param")
+        if param + ".param" in function.blocks[0].live_in:
+            allocate(param + ".param")
+        else:
+            # spill unused param to stack (temporary)
+            spill_to_stack(param + ".param", unassigned, allocation_table)
 
     for ind in dfs_order:
         block = blocks[ind]
