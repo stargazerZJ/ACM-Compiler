@@ -138,36 +138,39 @@ class ASMBuilder(ASMBuilderUtils):
             if isinstance(cmd, IRPhi):
                 # Skip phi nodes for now
                 continue
-            if isinstance(cmd, IRBinOp):
+            elif isinstance(cmd, IRBinOp):
                 dest, store_cmd = self.prepare_dest(cmd.dest)
                 if cmd.op == "add" and cmd.lhs == "0":
                     # special case: li
                     block.add_cmd(ASMCmd("li", dest, [self.parse_imm(cmd.rhs)]))
-                lhs, rhs = self.prepare_operands(block, cmd.lhs, cmd.rhs)
-                assert not isinstance(lhs, OperandImm)
-                assert not isinstance(rhs, OperandImm) or rhs.is_lower()
-                if cmd.op in ["add", "and", "or", "xor"]:
-                    op = cmd.op
-                    if isinstance(rhs, OperandImm):
-                        op += "i"
-                    block.add_cmd(ASMCmd(op, dest, [lhs, rhs]))
-                if cmd.op == "sub":
-                    if cmd.lhs == "0":
-                        block.add_cmd(ASMCmd("neg", dest, [rhs]))
-                    elif isinstance(rhs, OperandImm):
-                        block.add_cmd(ASMCmd("addi", dest, [lhs, - rhs.imm]))
+                else:
+                    lhs, rhs = self.prepare_operands(block, cmd.lhs, cmd.rhs)
+                    assert not isinstance(lhs, OperandImm)
+                    assert not isinstance(rhs, OperandImm) or rhs.is_lower()
+                    if cmd.op in ["add", "and", "or", "xor"]:
+                        op = cmd.op
+                        if isinstance(rhs, OperandImm):
+                            op += "i"
+                        block.add_cmd(ASMCmd(op, dest, [lhs, rhs]))
+                    elif cmd.op == "sub":
+                        if cmd.lhs == "0":
+                            block.add_cmd(ASMCmd("neg", dest, [rhs]))
+                        elif isinstance(rhs, OperandImm):
+                            block.add_cmd(ASMCmd("addi", dest, [lhs, - rhs.imm]))
+                        else:
+                            block.add_cmd(ASMCmd("sub", dest, [lhs, rhs]))
+                    elif cmd.op in ["shl", "ashr"]:
+                        # there is no shr in the input IR
+                        op = "sll" if cmd.op == "shl" else "sra"
+                        if isinstance(rhs, OperandImm):
+                            op += "i"
+                        block.add_cmd(ASMCmd(op, dest, [lhs, rhs]))
+                    elif cmd.op in ["mul", "sdiv", "srem"]:
+                        # there are no udiv and urem in the input IR
+                        op = {"mul": "mul", "sdiv": "div", "srem": "rem"}[cmd.op]
+                        block.add_cmd(ASMCmd(op, dest, [lhs, rhs]))
                     else:
-                        block.add_cmd(ASMCmd("sub", dest, [lhs, rhs]))
-                if cmd.op in ["shl", "ashr"]:
-                    # there is no shr in the input IR
-                    op = "sll" if cmd.op == "shl" else "sra"
-                    if isinstance(rhs, OperandImm):
-                        op += "i"
-                    block.add_cmd(ASMCmd(op, dest, [lhs, rhs]))
-                if cmd.op in ["mul", "sdiv", "srem"]:
-                    # there are no udiv and urem in the input IR
-                    op = {"mul": "mul", "sdiv": "div", "srem": "rem"}[cmd.op]
-                    block.add_cmd(ASMCmd(op, dest, [lhs, rhs]))
+                        raise AssertionError(f"Unknown binary command: {cmd.llvm()}")
                 if store_cmd is not None:
                     block.add_cmd(store_cmd)
             elif isinstance(cmd, IRIcmp):
@@ -257,7 +260,8 @@ class ASMBuilder(ASMBuilderUtils):
 
                 self.restore_registers(caller_regs, self.current_function.stack_size)
             # There is no alloca nor gep in the input IR
-            raise NotImplementedError(f"Unsupported command: {cmd}")
+            else:
+                raise NotImplementedError(f"Unsupported command: {cmd}")
         return block
 
     def eliminate_phi(self, asm_blocks: list[ASMBlock]):
