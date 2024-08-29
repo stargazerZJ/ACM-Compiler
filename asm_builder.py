@@ -298,6 +298,7 @@ class ASMBuilder(ASMBuilderUtils):
                     new_blocks.append(new_block)
                 else:
                     pred.add_cmd(*self.rearrange_variables(phi_from, phi_to, "t0"))
+        asm_blocks.extend(new_blocks)
 
 if __name__ == '__main__':
     from antlr_generated.MxLexer import MxLexer
@@ -360,5 +361,5 @@ if __name__ == '__main__':
     print("ASM building done", file=sys.stderr)
     print(asm.riscv())
     with open("output-asm.s", "w") as f:
-        print(ir.llvm(), file=f)
+        print(asm.riscv(), file=f)
         print("MIR output to" + "output.ll", file=sys.stderr)
