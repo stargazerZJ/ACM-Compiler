@@ -1,5 +1,5 @@
 import dominator
-from ir_repr import IRFunction, IRPhi
+from ir_repr import IRFunction, IRPhi, IRCall
 from opt_utils import build_graph
 
 K = 26  # ra, a0-a7, s0-s11, t2-t6
@@ -49,7 +49,7 @@ def get_pointer_name(var: str):
 
 
 def choose_spill(vars_: set[str], unassigned: set[str], allocation_table: dict[str, AllocationBase]):
-    n = K - len(vars_)
+    n = len(vars_) - K
     for _ in range(n):
         var = vars_.pop()
         spill_to_stack(var, unassigned, allocation_table)
