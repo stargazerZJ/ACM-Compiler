@@ -12,7 +12,7 @@ class BlockNamer:
         self.func_name = func_name
 
     def get(self) -> str:
-        name = f".L-{self.func_name}-{self.counter}"
+        name = f".L_{self.func_name}_{self.counter}"
         self.counter += 1
         return name
 
@@ -260,7 +260,10 @@ class ASMBuilderUtils:
             elif isinstance(f, OperandImm):
                 cmds.append(ASMCmd("li", t.reg, [str(f)]))
             elif isinstance(f, OperandGlobal):
-                cmds.append(ASMMemOp("lw", t.reg, f.label))
+                if f.label.startswith(".str"):
+                    cmds.append(ASMMemOp("la", t.reg, f.label))
+                else:
+                    cmds.append(ASMMemOp("lw", t.reg, f.label))
 
         return cmds
 
