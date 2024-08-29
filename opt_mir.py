@@ -82,6 +82,7 @@ def mir_builder(block: IRBlock):
                     if is_imm(cmd.lhs):
                         # special case: imm == 0 (temporary)
                         li_lhs(cmd, new_list)
+                        new_list.append(cmd)
                 else:
                     name = renamer.get_name("%.xor")
                     xor_cmd = IRBinOp(name, "xor", cmd.lhs, cmd.rhs, cmd.typ)
@@ -89,7 +90,8 @@ def mir_builder(block: IRBlock):
                     new_list.append(xor_cmd)
                     cmd.var_use[0] = name
                     cmd.var_use[1] = "0"
-                    continue
+                    new_list.append(cmd)
+                continue
             inv = False
             if cmd.op in ["sle", "sge"]:
                 inv = True
