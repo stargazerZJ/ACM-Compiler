@@ -118,6 +118,7 @@ def mir_builder(block: IRBlock):
         elif isinstance(cmd, IRGetElementPtr):
             # Not compatible with LLVM IR, as IR disallows pointer arithmetic
             operand = cmd.ptr
+            flag = False    # command added
             if cmd.arr_index != "0":
                 shl_offset = {"%.arr": "3", "i32" : "2", "ptr" : "2", "i1" :"0"}[cmd.typ.ir_name]
                 if shl_offset != "0":
@@ -136,11 +137,16 @@ def mir_builder(block: IRBlock):
                     commutative_law(add_cmd, new_list)
                     new_list.append(add_cmd)
                     operand = cmd.ptr
+                flag = True
             if cmd.member_offset != 0:
-                member_cmd = IRBinOp(cmd.dest, "add", operand, cmd.member_offset, "ptr")
+                member_cmd = IRBinOp(cmd.dest, "add", operand, str(cmd.member_offset), "ptr")
                 commutative_law(member_cmd, new_list)
-            else:
+                new_list.append(member_cmd)
+                flag = True
+            if flag:
                 new_list[-1].var_def[0] = cmd.dest
+            else:
+                new_list.append(IRBinOp(cmd.dest, "add", cmd.ptr, "0", "ptr"))
         elif isinstance(cmd, IRStore):
             if is_imm(cmd.src):
                 li_name = add_li(new_list, cmd.src, cmd.typ)
