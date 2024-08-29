@@ -209,14 +209,14 @@ class ASMBuilder(ASMBuilderUtils):
                 dest, store_cmd = self.prepare_dest(cmd.dest)
                 addr, _ = self.prepare_operand(block, cmd.src, "t0")
                 assert not isinstance(addr, OperandImm)
-                block.add_cmd(ASMMemOp("lw", dest, str(addr)))
+                block.add_cmd(ASMMemOp("lw", dest, 0, str(addr)))
                 if store_cmd is not None:
                     block.add_cmd(store_cmd)
             elif isinstance(cmd, IRStore):
                 value, pos = self.prepare_operands(block, cmd.dest, cmd.src)
                 assert not isinstance(value, OperandImm)
                 assert not isinstance(pos, OperandImm)
-                block.add_cmd(ASMMemOp("sw", str(value), str(pos)))
+                block.add_cmd(ASMMemOp("sw", str(value), 0, str(pos)))
             elif isinstance(cmd, IRJump):
                 block.set_flow_control(ASMFlowControl.jump(block))
             elif isinstance(cmd, IRBranch):
