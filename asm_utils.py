@@ -1,3 +1,4 @@
+import sys
 from typing import cast
 
 from asm_regalloc import AllocationRegister, AllocationStack, AllocationGlobal, AllocationBase
@@ -63,6 +64,7 @@ class ASMBuilderUtils:
     current_function: ASMFunction
     callee_reg: list[str]
     allocation_table: dict[str, AllocationBase]
+
     def __init__(self):
         # self.block_namer = BlockNamer(name)
         # self.current_function = func
@@ -258,3 +260,9 @@ class ASMBuilderUtils:
                 cmds.append(ASMMemOp("lw", t.reg, f.label))
 
         return cmds
+
+    def print_allocation_table(self, file=sys.stderr):
+        print(f"=== Allocation Table for {self.current_function.label} ===", file=file)
+        for ir_name, alloc in self.allocation_table.items():
+            print(f"{ir_name: <20} -> {alloc}", file=file)
+        print("\n", file=file)

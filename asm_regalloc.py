@@ -16,6 +16,9 @@ class AllocationStack(AllocationBase):
     def __init__(self, pointer_name: str):
         self.pointer_name = pointer_name
 
+    def __repr__(self):
+        return f"Allocated on stack    @{self.offset: <5}, pointer_name: {self.pointer_name}"
+
 
 class AllocationRegister(AllocationBase):
     logical_id: int
@@ -24,12 +27,17 @@ class AllocationRegister(AllocationBase):
     def __init__(self, logical_id: int):
         self.logical_id = logical_id
 
+    def __repr__(self):
+        return f"Allocated on register {self.reg: <5}"
 
 class AllocationGlobal(AllocationBase):
     label: str
 
     def __init__(self, label: str):
         self.label = label
+
+    def __repr__(self):
+        return f"Allocated on global   {self.label}"
 
 
 def get_pointer_name(var: str):

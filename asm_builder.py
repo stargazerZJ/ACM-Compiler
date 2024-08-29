@@ -118,6 +118,10 @@ class ASMBuilder(ASMBuilderUtils):
         blocks = self.rearrange_blocks(blocks)
         # TODO: relax branch offsets
         func.blocks = blocks
+
+        # debug
+        self.print_allocation_table()
+
         return func
 
     @staticmethod
