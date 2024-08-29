@@ -11,7 +11,7 @@ class ASMCmdBase:
 
     def with_comment(self, asm_code: str) -> str:
         if self.comment is not None:
-            return asm_code + "\t\t; " + self.comment
+            return asm_code + "\t\t# " + self.comment
         return asm_code
 
     def riscv(self):
@@ -20,7 +20,7 @@ class ASMCmdBase:
 
 class ASMComment(ASMCmdBase):
     def riscv(self):
-        return "; " + self.comment
+        return "# " + self.comment
 
 
 class ASMLabel(ASMCmdBase):
@@ -178,7 +178,7 @@ class ASMBlock:
         return "\n\t".join(
             [label.riscv()] +
             [cmd.riscv() for cmd in self.cmds] +
-            [self.flow_control.riscv() if hasattr(self, "flow_control") else "; unreachable"]    # unreachable block has no flow
+            [self.flow_control.riscv() if hasattr(self, "flow_control") else "# unreachable"]    # unreachable block has no flow
         )
 
 
@@ -195,7 +195,7 @@ class ASMFunction:
         self.stack_size = 0
 
     def riscv(self):
-        label = f".globl {self.label}\n{self.label}:\t\t; === Function {self.label} ===\n"
+        label = f".globl {self.label}\n{self.label}:\t\t# === Function {self.label} ===\n"
         return label + "\n".join(
             block.riscv() for block in self.blocks
         ) + "\n"
