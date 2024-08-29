@@ -242,7 +242,7 @@ class ASMBuilder(ASMBuilderUtils):
                         value = OperandReg("a0")
                     if value.reg != "a0":
                         block.add_cmd(ASMMove("a0", str(value)))
-                self.restore_registers(self.callee_reg, self.current_function.stack_size)
+                block.add_cmd(*self.restore_registers(self.callee_reg, self.current_function.stack_size))
                 ra_alloc = self.allocation_table["ret_addr"]
                 if isinstance(ra_alloc, AllocationStack):
                     block.add_cmd(ASMMemOp("lw", "ra", ra_alloc.offset, "sp"))
@@ -257,12 +257,13 @@ class ASMBuilder(ASMBuilderUtils):
                     if isinstance(alloc, AllocationRegister):
                         caller_regs.add(alloc.reg)
                 caller_regs.intersection_update(
-                    [f"t{i}" for i in range(2, 7)]
+                    ["ra"]
+                    + [f"t{i}" for i in range(2, 7)]
                     + [f"a{i}" for i in range(8)]
                 )
                 caller_regs = list(caller_regs)
                 caller_regs.sort()
-                self.save_registers(caller_regs, self.current_function.stack_size)
+                block.add_cmd(*self.save_registers(caller_regs, self.current_function.stack_size))
 
                 param_count = len(cmd.func.param_ir_names)
 
@@ -284,7 +285,7 @@ class ASMBuilder(ASMBuilderUtils):
                     result_to = self.prepare_var_to(cmd.var_def)
                     block.add_cmd(*self.rearrange_variables([OperandReg("a0")], result_to, "t0"))
 
-                self.restore_registers(caller_regs, self.current_function.stack_size)
+                block.add_cmd(*self.restore_registers(caller_regs, self.current_function.stack_size))
             # There is no alloca nor gep in the input IR
             else:
                 raise NotImplementedError(f"Unsupported command: {cmd}")
