@@ -181,11 +181,15 @@ class ASMBuilderUtils:
                 alloc = cast(AllocationStack, alloc)
                 block.add_cmd(ASMMemOp("lw", tmp_reg, alloc.offset, "sp"))
                 return OperandReg(tmp_reg), True
-        # elif operand in self.global_symbol_table:
-        #     alloc = self.global_symbol_table[operand]
-        #     # `lw rd, symbol` is a pseudo instruction that will be expanded to lui and lw
-        #     block.add_cmd(ASMMemOp("lw", tmp_reg, alloc.label))
-        #     return OperandReg(tmp_reg), True
+        elif operand in self.global_symbol_table:
+            alloc = self.global_symbol_table[operand]
+            if alloc.label.startswith(".str"):
+                block.add_cmd(ASMMemOp("la", tmp_reg, alloc.label))
+            else:
+                # `lw rd, symbol` is a pseudo instruction that will be expanded to lui and lw
+                block.add_cmd(ASMMemOp("lw", tmp_reg, alloc.label))
+                raise AssertionError("Unexpected operand type")
+            return OperandReg(tmp_reg), True
         else:
             return OperandImm(self.parse_imm(operand)), False
 
