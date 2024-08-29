@@ -211,7 +211,7 @@ class ASMGlobal(ASMCmdBase):
         self.value = value
 
     def riscv(self):
-        return self.with_comment(f".globl {self.name}\n{self.name}: .word {self.value}")
+        return self.with_comment(f".globl {self.name}\n{self.name}:\n\t.word {self.value}")
 
 
 class ASMStr(ASMGlobal):
@@ -223,7 +223,7 @@ class ASMStr(ASMGlobal):
     def riscv(self):
         value = (self.value.replace("\\", "\\5C").replace("\n", "\\0A")
                  .replace("\"", "\\22"))
-        return self.with_comment(f".globl {self.name}\n{self.name}: .asciz \"{value}\"")
+        return self.with_comment(f".globl {self.name}\n{self.name}:\n\t.asciz \"{value}\"")
 
 
 class ASMModule:
