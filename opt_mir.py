@@ -109,7 +109,7 @@ def mir_builder(block: IRBlock):
                 li_rhs(cmd, new_list)
             if inv:
                 name = renamer.get_name("%.inv")
-                xor_cmd = IRBinOp(cmd.dest, "xor", cmd.var_use[0], "true", "i1")
+                xor_cmd = IRBinOp(cmd.dest, "xor", name, "true", "i1")
                 cmd.var_def[0] = name
                 new_list.append(cmd)
                 new_list.append(xor_cmd)
