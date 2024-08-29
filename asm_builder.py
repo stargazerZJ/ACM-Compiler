@@ -235,7 +235,7 @@ class ASMBuilder(ASMBuilderUtils):
             elif isinstance(cmd, IRBranch):
                 cond, _ = self.prepare_operand(block, cmd.cond, "t0")
                 assert isinstance(cond, OperandReg)
-                block.set_flow_control(ASMFlowControl.branch("beqz", [str(cond)], block))
+                block.set_flow_control(ASMFlowControl.branch("bnez", [str(cond)], block))
             elif isinstance(cmd, IRRet):
                 if cmd.value:
                     value, _ = self.prepare_operand(block, cmd.value, "a0")
