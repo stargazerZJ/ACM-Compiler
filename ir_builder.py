@@ -490,6 +490,7 @@ class IRBuilder(MxParserVisitor):
             result_chain.phi(new_name, true_value.typ.ir_name,
                              [(bb_exit, true_value.llvm()) for bb_exit in true_exits] +
                              [(bb_exit, false_value.llvm()) for bb_exit in false_exits])
+            # Known Issue: array size is not properly processed
             chain.merge_exits(result_chain.exits)
             return ExprValue(true_value.typ, new_name)
 
