@@ -101,7 +101,7 @@ class ASMBuilder(ASMBuilderUtils):
         param_to = self.prepare_var_to(["ret_addr"] + [
             param + ".param" for param in ir_func.info.param_ir_names])
         header_block.add_cmd(*self.rearrange_variables(param_from, param_to, "t0"))
-        header_block.add_cmd(*self.save_registers(self.callee_reg, func.stack_size))
+        save_register_cmds = self.save_registers(self.callee_reg, func.stack_size)
 
         func.stack_size += self.max_saved_reg * 4
         func.stack_size = (func.stack_size + 15) // 16 * 16
@@ -109,6 +109,8 @@ class ASMBuilder(ASMBuilderUtils):
         if func.stack_size > 0:
             # TODO: stack_size >= 2048
             header_block.add_cmd(ASMCmd("addi", "sp", ["sp", str(-func.stack_size)]))
+
+        header_block.add_cmd(*save_register_cmds)
 
         header_block.predecessors = []
         header_block.successors = [blocks[0]]
