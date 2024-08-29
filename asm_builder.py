@@ -189,7 +189,7 @@ class ASMBuilder(ASMBuilderUtils):
                 assert not isinstance(lhs, OperandImm)
                 assert not isinstance(rhs, OperandImm) or rhs.is_lower()
                 if cmd.rhs == "0":
-                    assert cmd.op in ["slt", "sgt", "sne", "seq"]
+                    assert cmd.op in ["slt", "sgt", "ne", "eq"]
                     op = cmd.op + "z"
                     block.add_cmd(ASMCmd(op, dest, [lhs]))
                 else:
@@ -320,9 +320,12 @@ if __name__ == '__main__':
     from opt_mir import mir_builder
     from opt_liveness_analysis import liveness_analysis
 
-    test_file_path = "./testcases/demo/d6.mx"
-    input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
-    # input_stream = antlr4.StdinStream(encoding='utf-8')
+    if len(sys.argv) == 1:
+        # test_file_path = "./testcases/demo/d7.mx"
+        test_file_path = "./testcases/codegen/t1.mx"
+        input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
+    else:
+        input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)
     parser = MxParser(antlr4.CommonTokenStream(lexer))
 
