@@ -71,7 +71,7 @@ class ASMMemOp(ASMCmdBase):
 
     def riscv(self):
         if self.relative is not None:
-            return self.with_comment(self.op + " " + self.reg + ", " + str(self.addr) + "(sp)")
+            return self.with_comment(self.op + " " + self.reg + ", " + str(self.addr) + f"({self.relative})")
         cmd = self.op + " " + self.reg + ", " + self.addr
         if self.tmp_reg is not None:
             cmd += ", " + self.tmp_reg
