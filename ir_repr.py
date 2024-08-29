@@ -256,6 +256,14 @@ class IRGetElementPtr(IRCmdBase):
     def arr_index(self):
         return self.var_use[1] if len(self.var_use) > 1 else "0"
 
+    @property
+    def member_offset(self):
+        if isinstance(self.typ, ClassInfo):
+            member_index = self.typ.get_member_idx(self.member)
+            return member_index * 4
+        else:
+            return 0
+
     def llvm(self):
         if isinstance(self.typ, ClassInfo):
             member_index = self.typ.get_member_idx(self.member)
@@ -362,3 +370,9 @@ class IRModule:
         for function in self.functions:
             if not function.is_declare():
                 opt(function)
+
+    def for_each_block(self, opt):
+        for function in self.functions:
+            if not function.is_declare():
+                for block in function.blocks:
+                    opt(block)
