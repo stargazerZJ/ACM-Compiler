@@ -805,4 +805,4 @@ if __name__ == '__main__':
         print("IR building done", file=sys.stderr)
         print(ir.llvm())
     except Exception as e:
-        print(f"IR building failed: e", file=sys.stderr)
+        print(f"IR building failed: {e}", file=sys.stderr)
