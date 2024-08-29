@@ -154,7 +154,11 @@ class ASMBuilder(ASMBuilderUtils):
                 elif cmd.op == "sub" and cmd.lhs == "0":
                     # special case: neg
                     _, rhs = self.prepare_operands(block, cmd.lhs, cmd.rhs)
-                    block.add_cmd(ASMCmd("neg", dest, [rhs]))
+                    if isinstance(rhs, OperandImm):
+                        # temporary
+                        block.add_cmd(ASMCmd("li", dest, [-rhs.imm]))
+                    else:
+                        block.add_cmd(ASMCmd("neg", dest, [rhs]))
                 else:
                     lhs, rhs = self.prepare_operands(block, cmd.lhs, cmd.rhs)
                     assert not isinstance(lhs, OperandImm)
