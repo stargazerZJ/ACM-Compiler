@@ -8,4 +8,4 @@ build:
 	zsh scripts/pybind11-build.zsh
 
 run:
-	python3 syntax_checker.py
+	python3 ir_builder.py

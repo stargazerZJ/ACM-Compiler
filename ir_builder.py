@@ -796,9 +796,13 @@ if __name__ == '__main__':
         print("Syntax check passed", file=sys.stderr)
     except MxSyntaxError as e:
         print(f"Syntax check failed: {e}", file=sys.stderr)
+        print(e.standardize())
         exit(1)
 
-    ir_builder = IRBuilder(recorder)
-    ir: IRModule = ir_builder.visit(tree)
-    print("IR building done", file=sys.stderr)
-    print(ir.llvm())
+    try:
+        ir_builder = IRBuilder(recorder)
+        ir: IRModule = ir_builder.visit(tree)
+        print("IR building done", file=sys.stderr)
+        print(ir.llvm())
+    except Exception as e:
+        print(f"IR building failed: e", file=sys.stderr)
