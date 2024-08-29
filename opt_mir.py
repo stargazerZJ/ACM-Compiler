@@ -74,7 +74,7 @@ def mir_builder(block: IRBlock):
                     li_rhs(cmd, new_list)
             new_list.append(cmd)
         elif isinstance(cmd, IRIcmp):
-            if cmd.op in ["eq", "neq"]:
+            if cmd.op in ["eq", "ne"]:
                 if is_zero(cmd.lhs):
                     swap_operands(cmd)
                 if is_zero(cmd.rhs):
