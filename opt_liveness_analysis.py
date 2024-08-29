@@ -9,7 +9,7 @@ def collect_defs(function: IRFunction) -> set[str]:
             for cmd in block
             for var in cmd.var_def}
     defs.add("ret_addr")
-    defs.union({
+    defs.update({
         param + ".param" for param in function.info.param_ir_names
     })
     return defs
