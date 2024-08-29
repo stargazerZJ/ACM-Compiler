@@ -115,7 +115,7 @@ class ASMBuilder(ASMBuilderUtils):
         blocks[0].predecessors = [header_block]
 
         blocks.insert(0, header_block)
-        self.rearrange_blocks(blocks)
+        blocks = self.rearrange_blocks(blocks)
         # TODO: relax branch offsets
         func.blocks = blocks
         return func
