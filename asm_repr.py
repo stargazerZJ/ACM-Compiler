@@ -221,8 +221,8 @@ class ASMStr(ASMGlobal):
         super().__init__(name, value, comment)
 
     def riscv(self):
-        value = (self.value.replace("\\", "\\5C").replace("\n", "\\0A")
-                 .replace("\"", "\\22"))
+        value = (self.value.replace("\\", "\\\\").replace("\n", "\\n")
+                 .replace("\"", "\\\""))
         return self.with_comment(f".globl {self.name}\n{self.name}:\n\t.asciz \"{value}\"")
 
 
