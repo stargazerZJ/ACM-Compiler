@@ -126,9 +126,9 @@ class ASMFlowControl(ASMCmdBase):
             return self.with_comment("tail " + self.tail_function)
         if self.op == "j":
             if self.can_fallthrough:
-                return self.with_comment("j " + self.block.successors[0].label)
-            else:
                 return self.with_comment("")
+            else:
+                return self.with_comment("j " + self.block.successors[0].label)
         # branch
         dest = (self.block.successors[0].label, self.block.successors[1].label)
         # (false_dest, true_dest)
@@ -178,7 +178,7 @@ class ASMBlock:
         return "\n\t".join(
             [label.riscv()] +
             [cmd.riscv() for cmd in self.cmds] +
-            [self.flow_control.riscv()]
+            [self.flow_control.riscv() if hasattr(self, "flow_control") else "; unreachable"]    # unreachable block has no flow
         )
 
 
