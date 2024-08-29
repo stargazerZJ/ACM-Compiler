@@ -209,7 +209,7 @@ class ASMBuilderUtils:
                         cmds.append(ASMCmd("li", tmp_reg, [str(f)]))
                         reg = tmp_reg
                 else:
-                    f = cast(f, OperandReg)
+                    f = cast(OperandReg, f)
                     reg = f.reg
                 cmds.append(ASMMemOp("sw", reg, t.offset, "sp"))
 
