@@ -1,8 +1,9 @@
 from asm_regalloc import AllocationBase, AllocationGlobal, allocate_registers, AllocationStack, AllocationRegister
-from asm_repr import ASMGlobal, ASMFunction, ASMStr, ASMModule, ASMBlock, ASMCmd, ASMMemOp, ASMCmdBase, ASMFlowControl, \
-    ASMMove
-from ir_repr import IRGlobal, IRModule, IRFunction, IRStr, IRBlock, IRPhi, IRCmdBase, IRBinOp, IRIcmp, IRLoad, IRStore, \
-    IRJump, IRBranch, IRRet
+from asm_repr import ASMGlobal, ASMFunction, ASMStr, ASMModule, ASMBlock, ASMCmd, ASMMemOp, ASMFlowControl, \
+    ASMMove, ASMCall
+from asm_utils import ASMBuilderUtils
+from ir_repr import IRGlobal, IRModule, IRFunction, IRStr, IRBlock, IRPhi, IRBinOp, IRIcmp, IRLoad, IRStore, \
+    IRJump, IRBranch, IRRet, IRCall
 
 
 class BlockNamer:
@@ -35,7 +36,6 @@ class OperandImm(OperandBase):
 
     def __init__(self, imm: int):
         self.imm = imm
-        assert self.is_lower()
 
     def is_lower(self):
         return - 2048 <= self.imm < 2048
@@ -44,18 +44,40 @@ class OperandImm(OperandBase):
         return str(self.imm)
 
 
-class ASMBuilder:
+class OperandStack(OperandBase):
+    offset: int
+
+    def __init__(self, offset: int):
+        self.offset = offset
+
+
+class OperandGlobal(OperandBase):
+    label: str
+
+    def __init__(self, label: str):
+        self.label = label
+
+
+# def function_param_generator() -> OperandReg | OperandStack:
+#     yield from (OperandReg("a" + str(i)) for i in range(8))
+#     i = 0
+#     while True:
+#         yield OperandStack(i * 4)
+
+
+
+class ASMBuilder(ASMBuilderUtils):
     ir_module: IRModule
-    global_symbol_table: dict[str, AllocationBase]
-    max_saved_reg: int
-    block_namer: BlockNamer
-    current_function: ASMFunction
-    used_reg: set[str]
-    allocation_table: dict[str, AllocationBase]
+    # global_symbol_table: dict[str, AllocationGlobal]
+    # max_saved_reg: int
+    # block_namer: BlockNamer
+    # current_function: ASMFunction
+    # callee_reg: list[str]
+    # allocation_table: dict[str, AllocationBase]
 
     def __init__(self, ir_module: IRModule):
+        super().__init__()
         self.ir_module = ir_module
-        self.global_symbol_table = {}
 
     def build(self) -> ASMModule:
         module = ASMModule()
@@ -81,13 +103,6 @@ class ASMBuilder:
         return ASMGlobal(name, value)
 
     @staticmethod
-    def parse_imm(value: str):
-        """does not check 12-bit overflow"""
-        if value in ["true", "false", "null"]:
-            value = 0 if value != "true" else 1
-        return int(value)
-
-    @staticmethod
     def build_str(cmd: IRStr) -> ASMStr:
         name = cmd.name.lstrip("@")
         return ASMStr(name, cmd.value)
@@ -100,7 +115,7 @@ class ASMBuilder:
         self.max_saved_reg = 0
         self.block_namer = BlockNamer(name)
         self.current_function = func
-        self.used_reg = set()
+        callee_reg = set()
         header_name = self.block_namer.get()
         if hasattr(ir_func, "is_leaf"):
             register_list = (["ra"]
@@ -113,6 +128,7 @@ class ASMBuilder:
                              + [f"s{i}" for i in range(12)]
                              + [f"t{i}" for i in range(7)])
 
+        func.stack_size += max(0, len(ir_func.info.param_ir_names) - 8) * 4
         for var, alloc in allocation_table.items():
             if isinstance(alloc, AllocationStack):
                 alloc.offset = func.stack_size
@@ -120,31 +136,42 @@ class ASMBuilder:
             else:
                 alloc: AllocationRegister
                 alloc.reg = register_list[alloc.logical_id]
-                self.used_reg.add(alloc.reg)
+                callee_reg.add(alloc.reg)
+        self.callee_reg = list(callee_reg.intersection(set(
+            [f"s{i}" for i in range(12)]
+        )))
+        self.callee_reg.sort()
+        del callee_reg
 
         blocks = [self.build_block(block) for block in ir_func.blocks]
-        self.link_blocks(blocks, ir_func)  # and write jump destinations
-        self.eliminate_phi(blocks, ir_func)
+        self.link_blocks(blocks, ir_func)  # and write jump/branch destinations
+        self.eliminate_phi(blocks)
+
+        header_block = ASMBlock(header_name)
+
+        param_from = [OperandReg("ra")] + self.prepare_params(len(ir_func.info.param_ir_names))
+        param_to = self.prepare_var_to(["ret_addr"] + ir_func.info.param_ir_names)
+        header_block.add_cmd(*self.rearrange_variables(param_from, param_to, "t0"))
+        header_block.add_cmd(*self.save_registers(self.callee_reg, func.stack_size))
 
         func.stack_size += self.max_saved_reg * 4
         func.stack_size = (func.stack_size + 15) // 16 * 16
 
-        header_block = ASMBlock(header_name)
         if func.stack_size > 0:
             # TODO: stack_size >= 2048
             header_block.add_cmd(ASMCmd("addi", "sp", ["sp", str(-func.stack_size)]))
-        ra_alloc = allocation_table["ret_addr"]
-        if isinstance(ra_alloc, AllocationStack):
-            header_block.add_cmd(ASMMemOp("sw", "ra", ra_alloc.offset, "sp"))
-        # TODO: function params and callee-saved registers
+
+        header_block.successors = blocks[0]
 
         blocks.insert(0, header_block)
-        # TODO: rearrange blocks and relax branch offsets
+        self.rearrange_blocks(blocks)
+        # TODO: relax branch offsets
         func.blocks = blocks
         return func
 
     @staticmethod
     def link_blocks(asm_blocks: list[ASMBlock], func: IRFunction):
+        """link_blocks and write jump/branch destinations"""
         ir_blocks = func.blocks
         for ir_block, asm_block in zip(ir_blocks, asm_blocks):
             ir_block: IRBlock
@@ -156,44 +183,6 @@ class ASMBuilder:
                 assert isinstance(branch, IRBranch)
                 if branch.true_dest.idx == 0:
                     asm_block.successors = [asm_block.successors[1], asm_block.successors[0]]
-
-    def prepare_dest(self, dest: str) -> tuple[str, ASMMemOp | None]:
-        tmp_reg = "t0"
-        if dest in self.allocation_table:
-            alloc = self.allocation_table[dest]
-            if isinstance(alloc, AllocationRegister):
-                return alloc.reg, None
-            else:
-                store_cmd = ASMMemOp("sw", tmp_reg, alloc.offset, "sp")
-                return tmp_reg, store_cmd
-        else:
-            alloc = self.global_symbol_table[dest]
-            # `sw rd, symbol` is a pseudo instruction that will be expanded to lui and sw
-            store_cmd = (ASMMemOp("sw", tmp_reg, alloc.label))
-            return tmp_reg, store_cmd
-
-    def prepare_operand(self, block: ASMBlock, operand: str, tmp_reg: str) -> tuple[OperandBase, bool]:
-        if operand in self.allocation_table:
-            alloc = self.allocation_table[operand]
-            if isinstance(alloc, AllocationRegister):
-                return OperandReg(alloc.reg), False
-            else:
-                block.add_cmd(ASMMemOp("lw", tmp_reg, alloc.offset, "sp"))
-                return OperandReg(tmp_reg), True
-        else:
-            if operand in self.global_symbol_table:
-                alloc = self.global_symbol_table[operand]
-                # `lw rd, symbol` is a pseudo instruction that will be expanded to lui and lw
-                block.add_cmd(ASMMemOp("lw", tmp_reg, alloc.label))
-                return OperandReg(tmp_reg), True
-            else:
-                return OperandImm(self.parse_imm(operand)), False
-
-    def prepare_operands(self, block: ASMBlock, lhs: str, rhs: str) -> tuple[OperandBase, OperandBase]:
-        lhs_operand, tmp_used = self.prepare_operand(block, lhs, "t0")
-        tmp_reg = "t1" if tmp_used else "t0"
-        rhs_operand, _ = self.prepare_operand(block, rhs, tmp_reg)
-        return lhs_operand, rhs_operand
 
     def build_block(self, ir_block: IRBlock) -> ASMBlock:
         block = ASMBlock(self.block_namer.get(), ir_block)
@@ -207,6 +196,8 @@ class ASMBuilder:
                     # special case: li
                     block.add_cmd(ASMCmd("li", dest, [self.parse_imm(cmd.rhs)]))
                 lhs, rhs = self.prepare_operands(block, cmd.lhs, cmd.rhs)
+                assert not isinstance(lhs, OperandImm)
+                assert not isinstance(rhs, OperandImm) or rhs.is_lower()
                 if cmd.op in ["add", "and", "or", "xor"]:
                     op = cmd.op
                     if isinstance(rhs, OperandImm):
@@ -234,6 +225,8 @@ class ASMBuilder:
             elif isinstance(cmd, IRIcmp):
                 dest, store_cmd = self.prepare_dest(cmd.dest)
                 lhs, rhs = self.prepare_operands(block, cmd.lhs, cmd.rhs)
+                assert not isinstance(lhs, OperandImm)
+                assert not isinstance(rhs, OperandImm) or rhs.is_lower()
                 if cmd.rhs == "0":
                     assert cmd.op in ["slt", "sgt", "sne", "seq"]
                     op = cmd.op + "z"
@@ -250,11 +243,14 @@ class ASMBuilder:
                 # TODO: load/store with offset
                 dest, store_cmd = self.prepare_dest(cmd.dest)
                 addr, _ = self.prepare_operand(block, cmd.src, "t0")
+                assert not isinstance(addr, OperandImm)
                 block.add_cmd(ASMMemOp("lw", dest, str(addr)))
                 if store_cmd is not None:
                     block.add_cmd(store_cmd)
             elif isinstance(cmd, IRStore):
                 value, pos = self.prepare_operands(block, cmd.dest, cmd.src)
+                assert not isinstance(value, OperandImm)
+                assert not isinstance(pos, OperandImm)
                 block.add_cmd(ASMMemOp("sw", str(value), str(pos)))
             elif isinstance(cmd, IRJump):
                 block.set_flow_control(ASMFlowControl.jump(block))
@@ -263,11 +259,85 @@ class ASMBuilder:
                 assert isinstance(cond, OperandReg)
                 block.set_flow_control(ASMFlowControl.branch("beqz", [str(cond)], block))
             elif isinstance(cmd, IRRet):
-                value, _ = self.prepare_operand(block, cmd.value, "a0")
-                block.add_cmd(ASMMove("a0", str(value)))
-                # TODO: restore callee-saved registers
+                if cmd.value:
+                    value, _ = self.prepare_operand(block, cmd.value, "a0")
+                    if isinstance(value, OperandImm):
+                        block.add_cmd(ASMCmd("li", "a0", [str(value)]))
+                        value = OperandReg("a0")
+                    if value.reg != "a0":
+                        block.add_cmd(ASMMove("a0", str(value)))
+                self.restore_registers(self.callee_reg, self.current_function.stack_size)
+                ra_alloc = self.allocation_table["ret_addr"]
+                if isinstance(ra_alloc, AllocationStack):
+                    block.add_cmd(ASMMemOp("lw", "ra", ra_alloc.offset, "sp"))
                 block.set_flow_control(ASMFlowControl.ret(self.current_function))  # includes `addi sp`
+            elif isinstance(cmd, IRCall):
+                func_name = cmd.func.ir_name.lstrip("@")
+
+                caller_regs = set()
+                for var in cmd.live_out:
+                    if var == cmd.dest: continue
+                    alloc = self.allocation_table[var]
+                    if isinstance(alloc, AllocationRegister):
+                        caller_regs.add(alloc.reg)
+                caller_regs.intersection_update(
+                    [f"t{i}" for i in range(2, 7)]
+                    + [f"a{i}" for i in range(8)]
+                )
+                caller_regs = list(caller_regs)
+                caller_regs.sort()
+                self.save_registers(caller_regs, self.current_function.stack_size)
+
+                param_count = len(cmd.func.param_ir_names)
+
+                stack_delta = max(0, param_count - 8) * 4
+                stack_delta = (stack_delta + 15) // 16 * 16
+                if stack_delta > 0:
+                    block.add_cmd(ASMCmd("addi", "sp", ["sp", str(-stack_delta)]))
+
+                param_to = self.prepare_params(param_count)
+                param_from = self.prepare_var_from(cmd.func.param_ir_names)
+                block.add_cmd(*self.rearrange_variables(param_from, param_to, "t0"))
+
+                block.add_cmd(ASMCall(func_name))
+
+                if stack_delta > 0:
+                    block.add_cmd(ASMCmd("addi", "sp", ["sp", str(stack_delta)]))
+
+                result_to = self.prepare_var_to(cmd.var_def)
+                block.add_cmd(*self.rearrange_variables([OperandReg("a0")], result_to, "t0"))
+
+                self.restore_registers(caller_regs, self.current_function.stack_size)
             # There is no alloca nor gep in the input IR
-            # TODO: call
             raise NotImplementedError(f"Unsupported command: {cmd}")
         return block
+
+    def eliminate_phi(self, asm_blocks: list[ASMBlock]):
+        new_blocks = []
+        for block in asm_blocks:
+            ir_block = block.ir_block
+            if not ir_block.cmds or not isinstance(ir_block.cmds[0], IRPhi):
+                continue
+            phi_cmds: list[IRPhi] = list(filter(lambda phi: isinstance(phi, IRPhi), ir_block.cmds))
+            phi_to = self.prepare_var_to([phi.dest for phi in phi_cmds])
+
+            for pred_id, ir_pred in enumerate(ir_block.predecessors):
+                ir_pred = ir_pred.block
+                pred = asm_blocks[ir_pred.index]
+                phi_from = self.prepare_var_from([phi.lookup(ir_pred) for phi in phi_cmds])
+                if len(ir_pred.successors) > 1:
+                    new_block = ASMBlock(self.block_namer.get())
+                    new_block.add_cmd(*self.rearrange_variables(phi_from, phi_to, "t0"))
+                    if pred.successors[0] is block:
+                        pred.successors[0] = new_block
+                    else:
+                        assert pred.successors[1] is block
+                        pred.successors[1] = new_block
+                    new_block.predecessors = [pred]
+                    new_block.successors = [block]
+                    new_block.set_flow_control(ASMFlowControl.jump(new_block))
+                    assert block.predecessors[pred_id] is pred
+                    block.predecessors[pred_id] = new_block
+                    new_blocks.append(new_block)
+                else:
+                    pred.add_cmd(*self.rearrange_variables(phi_from, phi_to, "t0"))

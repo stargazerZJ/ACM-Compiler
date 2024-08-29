@@ -59,18 +59,23 @@ class ASMMemOp(ASMCmdBase):
     reg: str
     relative: str | None
     addr: str | int  # offset or symbol
+    tmp_reg: str | None
 
-    def __init__(self, op: str, reg: str, addr: str | int, relative: str | None = None, comment: str = None):
+    def __init__(self, op: str, reg: str, addr: str | int, relative: str = None, tmp_reg: str = None, comment: str = None):
         super().__init__(comment)
         self.op = op
         self.reg = reg
         self.relative = relative
         self.addr = addr
+        self.tmp_reg = tmp_reg
 
     def riscv(self):
         if self.relative is not None:
             return self.with_comment(self.op + " " + self.reg + ", " + str(self.addr) + "(sp)")
-        return self.with_comment(self.op + " " + self.reg + ", " + self.addr)
+        cmd = self.op + " " + self.reg + ", " + self.addr
+        if self.tmp_reg is not None:
+            cmd += ", " + self.tmp_reg
+        return self.with_comment(cmd)
 
 
 class ASMFlowControl(ASMCmdBase):
@@ -151,13 +156,13 @@ class ASMBlock:
     predecessors: list["ASMBlock"]
     successors: list["ASMBlock"]
 
-    def __init__(self, label: str, IRBlock: IRBlock = None):
+    def __init__(self, label: str, ir_block: IRBlock = None):
         self.label = label
-        self.ir_block = IRBlock
+        self.ir_block = ir_block
         self.cmds = []
 
-    def add_cmd(self, cmd: ASMCmdBase):
-        self.cmds.append(cmd)
+    def add_cmd(self, *cmds: ASMCmdBase):
+        self.cmds.extend(cmds)
 
     def set_flow_control(self, flow_control: ASMFlowControl):
         self.flow_control = flow_control

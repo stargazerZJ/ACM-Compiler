@@ -200,6 +200,8 @@ class IRRet(IRCmdBase):
 
 
 class IRPhi(IRCmdBase):
+    typ: str
+    sources: list[IRBlock]
     def __init__(self, dest: str, typ: str, values: list[tuple[IRBlock, str]]):
         self.var_def = [dest]
         self.var_use = [v[1] for v in values]
@@ -208,6 +210,12 @@ class IRPhi(IRCmdBase):
 
     @property
     def dest(self): return self.var_def[0]
+
+    def lookup(self, block: IRBlock):
+        for source, value in zip(self.sources, self.var_use):
+            if source.name == block.name:
+                return value
+        raise AssertionError(f"No matching phi value found for block: {block.name}")
 
     def llvm(self):
         ret = f"{self.dest} = phi {self.typ} "

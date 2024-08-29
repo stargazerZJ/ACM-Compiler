@@ -1,5 +1,5 @@
 from ir_renamer import renamer
-from ir_repr import IRBlock, IRBinOp, IRIcmp, IRGetElementPtr, IRCmdBase, IRStore
+from ir_repr import IRBlock, IRBinOp, IRIcmp, IRGetElementPtr, IRCmdBase, IRStore, IRRet
 
 
 def is_imm(s: str):
@@ -146,7 +146,13 @@ def mir_builder(block: IRBlock):
                 li_name = add_li(new_list, cmd.src, cmd.typ)
                 cmd.var_use[1] = li_name
             new_list.append(cmd)
+        # elif isinstance(cmd, IRRet):
+        #     if cmd.value and is_imm(cmd.value):
+        #         li_name = add_li(new_list, cmd.value, cmd.typ)
+        #         cmd.var_use[1] = li_name
+        #     new_list.append(cmd)
         else:
             new_list.append(cmd)
-    block.cmds = new_list
+        # opt: merge addi and load/store (future)
+        block.cmds = new_list
 
