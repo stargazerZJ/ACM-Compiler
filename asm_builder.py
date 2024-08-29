@@ -194,7 +194,7 @@ class ASMBuilder(ASMBuilderUtils):
                 assert not isinstance(rhs, OperandImm) or rhs.is_lower()
                 if cmd.rhs == "0":
                     assert cmd.op in ["slt", "sgt", "ne", "eq"]
-                    op = cmd.op + "z"
+                    op = {"slt": "sltz", "sgt": "sgtz", "ne": "snez", "eq": "seqz"}[cmd.op]
                     block.add_cmd(ASMCmd(op, dest, [lhs]))
                 else:
                     assert cmd.op == "slt"
