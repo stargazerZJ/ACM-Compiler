@@ -195,7 +195,7 @@ class ASMFunction:
         self.stack_size = 0
 
     def riscv(self):
-        label = f".globl {self.label}\n{self.label}:"
+        label = f".globl {self.label}\n{self.label}:\t\t; === Function {self.label} ===\n"
         return label + "\n".join(
             block.riscv() for block in self.blocks
         ) + "\n"
