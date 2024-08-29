@@ -105,7 +105,7 @@ def mir_builder(block: IRBlock):
                 inv = not inv
             if is_imm(cmd.lhs):
                 li_lhs(cmd, new_list)
-            if is_imm(cmd.rhs) and imm_overflow(cmd.rhs):
+            if is_imm(cmd.rhs) and imm_overflow(str(-int(cmd.rhs))):
                 li_rhs(cmd, new_list)
             if inv:
                 name = renamer.get_name("%.inv")
