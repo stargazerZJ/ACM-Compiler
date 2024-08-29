@@ -267,7 +267,7 @@ class ASMBuilder(ASMBuilderUtils):
                 caller_regs.sort()
                 block.add_cmd(*self.save_registers(caller_regs, self.current_function.stack_size))
 
-                param_count = len(cmd.func.param_ir_names)
+                param_count = len(cmd.func.param_types)
 
                 stack_delta = max(0, param_count - 8) * 4
                 stack_delta = (stack_delta + 15) // 16 * 16
@@ -340,7 +340,7 @@ if __name__ == '__main__':
 
     if len(sys.argv) == 1:
         # test_file_path = "./testcases/demo/d7.mx"
-        test_file_path = "./testcases/codegen/e10.mx"
+        test_file_path = "./testcases/codegen/e5.mx"
         input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     else:
         input_stream = antlr4.StdinStream(encoding='utf-8')
