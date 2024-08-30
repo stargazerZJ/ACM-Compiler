@@ -1,9 +1,10 @@
 from ir_renamer import renamer
 from ir_repr import IRBlock, IRBinOp, IRIcmp, IRGetElementPtr, IRCmdBase, IRStore, IRRet, IRBranch
+from opt_mem2reg import IRUndefinedValue
 
 
 def is_imm(s: str):
-    return not s.startswith("%") and not s.startswith("@")
+    return isinstance(s, IRUndefinedValue) or not s.startswith("%") and not s.startswith("@")
 
 
 def is_zero(s: str):
