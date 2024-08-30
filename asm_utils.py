@@ -256,6 +256,7 @@ class ASMBuilderUtils:
                 ret.append(ASMMove(nodes[i], nodes[i - 1]))
             # 1 <- tmp
             ret.append(ASMMove(nodes[1], tmp_reg))
+            return ret
 
         # steps:
         # 1. find all rings
@@ -266,6 +267,48 @@ class ASMBuilderUtils:
         # 3. Now the graph is a forest, for each node whose in degree is 1:
         #   tree_cmds += eliminate_tree(header_node)
         #   cmds += tree_cmds + ring_cmds
+
+        def find_ring(graph: dict[str, list[str]]) -> list[str]:
+            visited = set()
+            path = []
+
+            def dfs(node: str) -> list[str] | None:
+                if node in visited:
+                    if node in path:
+                        return path[path.index(node):]
+                    return None
+                visited.add(node)
+                path.append(node)
+                for neighbor in graph[node]:
+                    result = dfs(neighbor)
+                    if result:
+                        return result
+                path.pop()
+                return None
+
+            for node in graph:
+                ring = dfs(node)
+                if ring:
+                    return ring
+            return []
+
+        ring_cmds: list[ASMMove] = []
+        while True:
+            ring = find_ring(graph)
+            if not ring:
+                break
+            ring_cmds.extend(eliminate_ring(ring))
+            for i in range(len(ring)):
+                graph[ring[i]].remove(ring[(i + 1) % len(ring)])
+
+        tree_cmds: list[ASMMove] = []
+        in_degree = {node: sum(node in graph[v] for v in graph) for node in graph}
+        for node in graph:
+            if in_degree[node] == 0:
+                tree_cmds.extend(eliminate_tree(node))
+
+        cmds.extend(tree_cmds)
+        cmds.extend(ring_cmds)
 
         for f, t in zip(var_from, var_to):
             if not isinstance(t, OperandReg): continue
