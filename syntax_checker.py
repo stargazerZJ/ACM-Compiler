@@ -236,7 +236,9 @@ class SyntaxChecker(MxParserVisitor):
                 dimensions = len(ctx.Brack_Left_())
                 if ctx.array_Literal():
                     self.visitArray_Literal(ctx.array_Literal(), element_type.name, dimensions)
-                return ArrayType(element_type, dimensions), False
+                array_type = ArrayType(element_type, dimensions)
+                self.recorder.record(ctx, VariableInfo(array_type.internal_type(), ""))
+                return array_type, False
         else:
             class_name = ctx.Identifier().getText()
             class_type = self.scope.get_type(class_name, 0, ctx)

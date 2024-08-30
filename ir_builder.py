@@ -541,7 +541,7 @@ class IRBuilder(MxParserVisitor):
                 return self.visit_new_array_expr(ctx)
             else:
                 # new int[][] { {1, 2}, {3, 4} }
-                raise NotImplementedError("array literals are not yet supported")
+                return self.visit_new_array_literal(ctx)
         else:
             if ctx.new_Index():
                 # new A[10]
@@ -584,6 +584,34 @@ class IRBuilder(MxParserVisitor):
             size: ExprInfoBase = self.visit(expression)
             ret.append(size.to_operand(chain))
         return ret
+
+    def visit_new_array_literal(self, ctx: MxParser.New_TypeContext):
+        chain = self.stack.top_chain()
+        dimensions = len(ctx.Brack_Left_())
+        if dimensions > 1:
+            raise NotImplementedError("multi dimensional array literals are not yet supported")
+        length = len(ctx.array_Literal().literal_List().literal_Constant())
+        length_imm = ExprImm(builtin_types["int"], length)
+        array_internal_type: InternalPtrType = self.recorder.get_typed_info(ctx, VariableInfo).type
+        array_type: ArrayType = array_internal_type.pointed_to
+        malloc_type = array_type.element_type.name
+        function_name = f"@__new_{malloc_type}_1d_array__"
+        function_info = self.recorder.get_function_info(function_name)
+        arr_ptr_name = renamer.get_name_from_ctx(f"%.new.{array_type.element_type.name}.arr", ctx)
+        chain.add_cmd(IRCall(arr_ptr_name, function_info, [length_imm.llvm()]))
+        expr_arr = ExprArr(ExprValue(array_internal_type, arr_ptr_name), length_imm)
+        self.visitArray_Literal(ctx.array_Literal(), expr_arr)
+        return expr_arr
+
+    def visitArray_Literal(self, ctx: MxParser.Array_LiteralContext, expr_arr: ExprArr = None):
+        chain = self.stack.top_chain()
+        for i, literal in enumerate(ctx.literal_List().literal_Constant()):
+            imm = self.visitLiteral_Constant(literal)
+            new_name = renamer.get_name_from_ctx(f"%.subscript", ctx)
+            new_ptr_name = new_name + ".ptr"
+            chain.add_cmd(
+                IRGetElementPtr(new_ptr_name, imm.typ, expr_arr.ptr.llvm(), arr_index=str(i)))
+            chain.add_cmd(IRStore(new_ptr_name, imm.llvm(), imm.typ.ir_name))
 
     # noinspection PyUnboundLocalVariable
     def visitSubscript(self, ctx: MxParser.SubscriptContext):
