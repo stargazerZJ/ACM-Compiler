@@ -1,7 +1,7 @@
 from asm_regalloc import AllocationGlobal, allocate_registers, AllocationStack, AllocationRegister
 from asm_repr import ASMGlobal, ASMFunction, ASMStr, ASMModule, ASMBlock, ASMCmd, ASMMemOp, ASMFlowControl, \
     ASMMove, ASMCall
-from asm_utils import ASMBuilderUtils, BlockNamer, OperandReg, OperandImm
+from asm_utils import ASMBuilderUtils, BlockNamer, OperandReg, OperandImm, OperandStack
 from ir_repr import IRGlobal, IRModule, IRFunction, IRStr, IRBlock, IRPhi, IRBinOp, IRIcmp, IRLoad, IRStore, \
     IRJump, IRBranch, IRRet, IRCall
 
@@ -97,10 +97,6 @@ class ASMBuilder(ASMBuilderUtils):
 
         header_block = ASMBlock(header_name)
 
-        param_from = [OperandReg("ra")] + self.prepare_params(len(ir_func.info.param_ir_names))
-        param_to = self.prepare_var_to(["ret_addr"] + [
-            param + ".param" for param in ir_func.info.param_ir_names])
-        header_block.add_cmd(*self.rearrange_variables(param_from, param_to, "t0"))
         save_register_cmds = self.save_registers(self.callee_reg, func.stack_size)
 
         func.stack_size += self.max_saved_reg * 4
@@ -109,6 +105,15 @@ class ASMBuilder(ASMBuilderUtils):
         if func.stack_size > 0:
             # TODO: stack_size >= 2048
             header_block.add_cmd(ASMCmd("addi", "sp", ["sp", str(-func.stack_size)]))
+
+        param_from = [OperandReg("ra")] + self.prepare_params(len(ir_func.info.param_ir_names))
+        param_to = self.prepare_var_to(["ret_addr"] + [
+            param + ".param" for param in ir_func.info.param_ir_names])
+        for from_ in param_from:
+            if isinstance(from_, OperandStack):
+                from_.offset += func.stack_size
+        header_block.add_cmd(*self.rearrange_variables(param_from, param_to, "t0"))
+
 
         header_block.add_cmd(*save_register_cmds)
 
@@ -303,9 +308,11 @@ class ASMBuilder(ASMBuilderUtils):
                 continue
             phi_cmds: list[IRPhi] = list(filter(lambda phi: isinstance(phi, IRPhi), ir_block.cmds))
             phi_to = self.prepare_var_to([phi.dest for phi in phi_cmds])
+            print(f"processing {ir_block.name}: len phi is {len(phi_cmds)}", file=sys.stderr)
 
             for pred_id, ir_pred in enumerate(ir_block.predecessors):
                 ir_pred = ir_pred.block
+                print(f"Pred of block {ir_block.name}: {ir_pred.name}", file=sys.stderr)
                 pred = asm_blocks[ir_pred.index]
                 phi_from = self.prepare_var_from([phi.lookup(ir_pred) for phi in phi_cmds])
                 if len(ir_pred.successors) > 1:
@@ -342,7 +349,7 @@ if __name__ == '__main__':
 
     if len(sys.argv) == 1:
         # test_file_path = "./testcases/demo/d7.mx"
-        test_file_path = "./testcases/codegen/t18.mx"
+        test_file_path = "./testcases/codegen/t71.mx"
         input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
     else:
         input_stream = antlr4.StdinStream(encoding='utf-8')
