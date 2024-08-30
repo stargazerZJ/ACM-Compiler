@@ -64,7 +64,8 @@ class ASMMemOp(ASMCmdBase):
     addr: str | int  # offset or symbol
     tmp_reg: str | None
 
-    def __init__(self, op: str, reg: str, addr: str | int, relative: str = None, tmp_reg: str = None, comment: str = None):
+    def __init__(self, op: str, reg: str, addr: str | int, relative: str = None, tmp_reg: str = None,
+                 comment: str = None):
         super().__init__(comment)
         self.op = op
         self.reg = reg
@@ -89,6 +90,7 @@ class ASMFlowControl(ASMCmdBase):
     extend_range: bool  # use 3 commands "br, j, j" to enlarge branch range
     function: "ASMFunction"  # used to get the stack size
     tail_function: str
+    flipped: bool
 
     def __init__(self, op: str, operands: list[str], block: Union["ASMBlock", None], comment: str = None):
         super().__init__(comment)
@@ -97,6 +99,7 @@ class ASMFlowControl(ASMCmdBase):
         self.block = block
         self.can_fallthrough = False
         self.extend_range = False
+        self.flipped = False
 
     @staticmethod
     def jump(block: "ASMBlock", comment: str = None):
@@ -118,6 +121,24 @@ class ASMFlowControl(ASMCmdBase):
         tail.__setattr__("tail_function", function)
         return tail
 
+    def flip(self):
+        self.flipped = not self.flipped
+        self.can_fallthrough = False
+        self.op = {
+            "blt": "bge",
+            "bge": "blt",
+            "bltu": "bgeu",
+            "bgeu": "bltu",
+            "beq": "bne",
+            "bne": "beq",
+            "bnez": "beqz",
+            "beqz": "bnez",
+            "ble": "bgt",
+            "bgt": "ble",
+            "blez": "bgtz",
+            "bgtz": "blez"
+        }[self.op]
+
     def riscv(self):
         if self.op == "ret":
             if self.function.stack_size != 0:
@@ -134,6 +155,7 @@ class ASMFlowControl(ASMCmdBase):
                 return self.with_comment("j " + self.block.successors[0].label)
         # branch
         dest = (self.block.successors[0].label, self.block.successors[1].label)
+        if self.flipped: dest = (dest[1], dest[0])
         # (false_dest, true_dest)
         if self.extend_range:
             return self.with_comment(self.op + " " + ", ".join(self.operands) + ", .+4" +
@@ -181,7 +203,8 @@ class ASMBlock:
         return "\n\t".join(
             [label.riscv()] +
             [cmd.riscv() for cmd in self.cmds] +
-            [self.flow_control.riscv() if hasattr(self, "flow_control") else "# unreachable"]    # unreachable block has no flow
+            [self.flow_control.riscv() if hasattr(self, "flow_control") else "# unreachable"]
+            # unreachable block has no flow
         )
 
     def __repr__(self):
@@ -222,6 +245,7 @@ class ASMGlobal(ASMCmdBase):
 
 class ASMStr(ASMGlobal):
     value: str
+
     def __init__(self, name: str, value: str, comment: str = None):
         value = value.rstrip("\0")
         super().__init__(name, value, comment)
