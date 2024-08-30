@@ -438,6 +438,8 @@ class SyntaxChecker(MxParserVisitor):
         self.scope.push_scope(is_loop_scope=True)
         if ctx.initializer:
             self.visit(ctx.initializer)
+        elif ctx.variable_Definition():
+            self.visit(ctx.variable_Definition())
         if ctx.condition:
             condition_type, _ = self.visit(ctx.condition)
             if condition_type != builtin_types["bool"]:

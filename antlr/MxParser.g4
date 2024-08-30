@@ -43,7 +43,7 @@ else_Stmt   : 'else'                       suite ;
 loop_Stmt   : for_Stmt | while_Stmt ;
 for_Stmt    :
     'for' '('
-        initializer = expression? ';'
+        (initializer = expression? ';' | variable_Definition)
         condition   = expression? ';'
         step        = expression?
     ')' suite;

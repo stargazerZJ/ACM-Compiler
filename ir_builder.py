@@ -718,6 +718,8 @@ class IRBuilder(MxParserVisitor):
     def visitFor_Stmt(self, ctx: MxParser.For_StmtContext):
         if ctx.initializer:
             self.visit(ctx.initializer)
+        elif ctx.variable_Definition():
+            self.visit(ctx.variable_Definition())
         name_hint = renamer.get_name_from_ctx("for", ctx)
         self.visit_for_loop(name_hint, ctx.condition, ctx.suite(), ctx.step)
 
