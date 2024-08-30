@@ -323,7 +323,15 @@ class SyntaxChecker(MxParserVisitor):
                     self.raise_binary_type_error(l_type, r_type, ctx)
         return l_type, False
 
+    # def register_string_literal(self, ctx):
+    #     ir_name = renamer.get_name_from_ctx("@.str", ctx)
+    #     self.recorder.record(ctx, VariableInfo(builtin_types["string"].internal_type(), ir_name))
+
     def visitF_string(self, ctx: MxParser.F_stringContext):
+        # if ctx.FStringHead(): self.register_string_literal(ctx.FStringHead())
+        # if ctx.FStringTail(): self.register_string_literal(ctx.FStringTail())
+        # if ctx.FStringAtom(): self.register_string_literal(ctx.FStringAtom())
+        # for mid in ctx.FStringMid(): self.register_string_literal(ctx.FStringMid())
         for expression in ctx.expression():
             type_, _ = self.visit(expression)
             if type_ != builtin_types["int"] and type_ != builtin_types["string"] and type_ != builtin_types["bool"]:
@@ -491,8 +499,9 @@ if __name__ == '__main__':
     # test_file_path = "./testcases/sema/misc-package/misc-1.mx"
     # test_file_path = "./testcases/sema/const-array-package/const_array1.mx"
     # test_file_path = "./testcases/sema/scope-package/scope-1.mx"
-    # input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
-    input_stream = antlr4.StdinStream(encoding='utf-8')
+    test_file_path = "./testcases/codegen/t76.mx"
+    input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
+    # input_stream = antlr4.StdinStream(encoding='utf-8')
     lexer = MxLexer(input_stream)
     parser = MxParser(antlr4.CommonTokenStream(lexer))
 

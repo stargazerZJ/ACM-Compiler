@@ -302,6 +302,37 @@ class IRBuilder(MxParserVisitor):
             # Null
             return ExprImm(builtin_types["null"], None)
 
+    def visit_string_literal(self, ctx, beg, end):
+        ir_name = renamer.get_name_from_ctx("@.str", ctx.parentCtx)
+        string_info = VariableInfo(builtin_types["string"].internal_type(), ir_name)
+        string = ctx.getText()[beg:end]
+        self.ir_module.strings.append(IRStr(string_info.ir_name, string))
+        return ExprValue(string_info.type, string_info.ir_name)
+
+    def visitF_string(self, ctx: MxParser.F_stringContext):
+        # Known issues: FstringAtom; $$ escape
+        chain = self.stack.top_chain()
+        head = self.visit_string_literal(ctx.FStringHead(), 2, -1)
+        tail = self.visit_string_literal(ctx.FStringTail(), 1, -1)
+        mid = [
+            self.visit_string_literal(mid, 1, -1) for mid in ctx.FStringMid()
+        ]
+        str_name = head.llvm()
+        rest = mid + [tail]
+        for expr, str_expr in zip(ctx.expression(), rest):
+            info: ExprInfoBase = self.visit(expr)
+            value = info.to_operand(chain)
+            call_name = renamer.get_name_from_ctx("%.call", ctx)
+            func_info = builtin_function_infos["@toString"]
+            chain.add_cmd(IRCall(call_name, func_info, [value.llvm()]))
+            str_add_name = renamer.get_name_from_ctx("%.str.add", ctx)
+            str_add_info = builtin_function_infos["@string_add"]
+            chain.add_cmd(IRCall(str_add_name, str_add_info, [str_name, call_name]))
+            str_add_name2 = renamer.get_name_from_ctx("%.str.add", ctx)
+            chain.add_cmd(IRCall(str_add_name2, str_add_info, [str_add_name, str_expr.llvm()]))
+            str_name = str_add_name2
+        return ExprValue(head.typ, str_name)
+
     def visitBracket(self, ctx: MxParser.BracketContext):
         return self.visit(ctx.l)
 
