@@ -1,3 +1,5 @@
+import itertools
+
 from asm_regalloc import AllocationGlobal, allocate_registers, AllocationStack, AllocationRegister
 from asm_repr import ASMGlobal, ASMFunction, ASMStr, ASMModule, ASMBlock, ASMCmd, ASMMemOp, ASMFlowControl, \
     ASMMove, ASMCall
@@ -114,7 +116,6 @@ class ASMBuilder(ASMBuilderUtils):
                 from_.offset += func.stack_size
         header_block.add_cmd(*self.rearrange_variables(param_from, param_to, "t0"))
 
-
         header_block.add_cmd(*save_register_cmds)
 
         header_block.predecessors = []
@@ -124,7 +125,7 @@ class ASMBuilder(ASMBuilderUtils):
 
         blocks.insert(0, header_block)
         blocks = self.rearrange_blocks(blocks)
-        # TODO: relax branch offsets
+        self.relax_branch_offsets(blocks)
         func.blocks = blocks
 
         # debug
@@ -332,6 +333,25 @@ class ASMBuilder(ASMBuilderUtils):
                 else:
                     pred.add_cmd(*self.rearrange_variables(phi_from, phi_to, "t0"))
         asm_blocks.extend(new_blocks)
+
+    def relax_branch_offsets(self, blocks: list[ASMBlock]):
+        tolerance = 800
+        sizes = [block.estimated_size() for block in blocks]
+        prefix_sums = [0] + list(itertools.accumulate(sizes))
+        block_pos_beg = {block.label: pre for block, pre in zip(blocks, prefix_sums)}
+        block_pos_end = {block.label: pre for block, pre in zip(blocks, prefix_sums[1:])}
+        for block in blocks:
+            if len(block.successors) == 0:
+                continue
+            label = block.label
+            if block_pos_end[label] == block_pos_beg[block.successors[0].label]:
+                block.flow_control.can_fallthrough = True
+            if len(block.successors) == 2:
+                dis = [abs(block_pos_end[label] - block_pos_beg[block.successors[i].label]) for i in (0, 1)]
+                if dis[0] < tolerance < dis[1]:
+                    block.flow_control.flip()
+                elif tolerance < dis[0] and tolerance < dis[1]:
+                    block.flow_control.extend_range = True
 
 
 if __name__ == '__main__':
