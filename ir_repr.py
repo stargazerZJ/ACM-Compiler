@@ -11,6 +11,9 @@ class IRCmdBase:
     def llvm(self) -> str:
         raise NotImplementedError()
 
+    def __repr__(self):
+        return f'IR("{self.llvm()}")'
+
 
 class IRBinOp(IRCmdBase):
     def __init__(self, dest: str, op: str, lhs: str, rhs: str, typ: str):
@@ -143,6 +146,9 @@ class IRBlock:
 
     def __hash__(self):
         return hash(self.name)
+
+    def __repr__(self):
+        return f'IRBlock("{self.name}")'
 
 
 class UnreachableBlock(IRBlock):

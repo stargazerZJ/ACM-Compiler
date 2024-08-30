@@ -17,6 +17,9 @@ class ASMCmdBase:
     def riscv(self):
         raise NotImplementedError()
 
+    def __repr__(self):
+        return f'ASM("f{self.riscv()}")'
+
 
 class ASMComment(ASMCmdBase):
     def riscv(self):
@@ -180,6 +183,9 @@ class ASMBlock:
             [cmd.riscv() for cmd in self.cmds] +
             [self.flow_control.riscv() if hasattr(self, "flow_control") else "# unreachable"]    # unreachable block has no flow
         )
+
+    def __repr__(self):
+        return f'ASMBlock("{self.label}")'
 
 
 class ASMFunction:
