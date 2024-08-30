@@ -415,6 +415,11 @@ if __name__ == '__main__':
 
     asm_builder = ASMBuilder(ir)
     asm = asm_builder.build()
+    with open("clang_generated/builtin.s", 'r') as file:
+        builtin_asm = file.read()
+
+    asm.set_builtin_functions(builtin_asm)
+
     print("ASM building done", file=sys.stderr)
     print(asm.riscv())
     with open("output-asm.s", "w") as f:

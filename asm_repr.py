@@ -282,5 +282,6 @@ class ASMModule:
         asm += "\n\t.rodata\n\t.p2align 2\n"
         asm += "\n".join(str_.riscv() for str_ in self.strings)
         if hasattr(self, "builtin_functions"):
+            asm += "\n\n\t\t# === builtins ===\n"
             asm += self.builtin_functions
         return asm
