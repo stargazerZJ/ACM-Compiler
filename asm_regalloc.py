@@ -52,7 +52,7 @@ def choose_spill(vars_: set[str], unassigned: set[str], allocation_table: dict[s
     n = len(vars_) - K
     for _ in range(n):
         # var = vars_.pop()
-        var = max(vars_)
+        var = min(vars_)
         vars_.remove(var)
         spill_to_stack(var, unassigned, allocation_table)
 

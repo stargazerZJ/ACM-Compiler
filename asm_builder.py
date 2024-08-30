@@ -68,13 +68,13 @@ class ASMBuilder(ASMBuilderUtils):
         if hasattr(ir_func, "is_leaf"):
             register_list = (["ra"]
                              + [f"a{i}" for i in range(8)]
-                             + [f"t{i}" for i in range(7)]
+                             + [f"t{i}" for i in range(2, 7)]
                              + [f"s{i}" for i in range(12)])
         else:
             register_list = (["ra"]
                              + [f"a{i}" for i in range(8)]
                              + [f"s{i}" for i in range(12)]
-                             + [f"t{i}" for i in range(7)])
+                             + [f"t{i}" for i in range(2, 7)])
 
         func.stack_size += max(0, len(ir_func.info.param_ir_names) - 8) * 4
         for var, alloc in allocation_table.items():
@@ -128,7 +128,7 @@ class ASMBuilder(ASMBuilderUtils):
         func.blocks = blocks
 
         # debug
-        self.print_allocation_info()
+        # self.print_allocation_info()
 
         return func
 
