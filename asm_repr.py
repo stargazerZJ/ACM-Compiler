@@ -18,7 +18,7 @@ class ASMCmdBase:
         raise NotImplementedError()
 
     def __repr__(self):
-        return f'ASM("f{self.riscv()}")'
+        return f'ASM("{self.riscv()}")'
 
 
 class ASMComment(ASMCmdBase):
