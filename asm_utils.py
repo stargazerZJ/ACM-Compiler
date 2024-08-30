@@ -222,40 +222,50 @@ class ASMBuilderUtils:
                     reg = f.reg
                 cmds.append(ASMMemOp("sw", reg, t.offset, "sp"))
 
-        class Node:
-            def __init__(self):
-                self.out_deg = 0
-                self.pred: str | None = None
+        # the registers in var_to must be distinct,
+        # so the in degree of each node is <= 1
+        # so the graph is an outward base-ring-tree forest
+        graph: dict[str, list[str]] = {}
 
-        graph: dict[str, Node] = {}
-
+        # build the graph
         for f, t in zip(var_from, var_to):
             if not isinstance(f, OperandReg) or not isinstance(t, OperandReg):
                 continue
             f, t = f.reg, t.reg
-            if f == t: continue  # self loops
-            if f not in graph: graph[f] = Node()
-            if t not in graph: graph[t] = Node()
-            graph[f].out_deg += 1
-            graph[t].pred = f
-        visited: set[str] = set()
-        for reg, node in graph.items():
-            if node.out_deg == 0:
-                # chains
-                visited.add(reg)
-                while node.pred is not None:
-                    cmds.append(ASMMove(reg, node.pred))
-                    reg, node = node.pred, graph[node.pred]
-                    visited.add(reg)
-        for reg, node in graph.items():
-            if reg not in visited:
-                cmds.append(ASMMove(tmp_reg, reg))
-                visited.add(reg)
-                while node.pred not in visited:
-                    cmds.append(ASMMove(reg, node.pred))
-                    reg, node = node.pred, graph[node.pred]
-                    visited.add(reg)
-                cmds.append(ASMMove(reg, tmp_reg))
+            if f not in graph: graph[f] = []
+            if t not in graph: graph[t] = []
+            graph[f].append(t)
+
+        def eliminate_tree(u: str) -> list[ASMMove]:
+            ret = []
+            for v in graph[u]:
+                ret.extend(eliminate_tree(v))
+            for v in graph[u]:
+                ret.append(ASMMove(v, u))  # move v -> u
+            return ret
+
+        def eliminate_ring(nodes: list[str]) -> list[ASMMove]:
+            n = len(nodes)
+            if n == 1:
+                # self loop
+                return []
+            ret = [ASMMove(tmp_reg, nodes[0]), ASMMove(nodes[0], nodes[n - 1])]
+            # tmp <- 0, 0 <- (n-1)
+            for i in range(n - 1, 1, -1):
+                # (n-1) <- (n-2), ..., 2 <- 1
+                ret.append(ASMMove(nodes[i], nodes[i - 1]))
+            # 1 <- tmp
+            ret.append(ASMMove(nodes[1], tmp_reg))
+
+        # steps:
+        # 1. find all rings
+        # 2. for each ring:
+        #   ring_nodes = nodes in the ring, in order
+        #   ring_cmds += eliminate_ring(ring_nodes)
+        #   delete the ring from the graph
+        # 3. Now the graph is a forest, for each node whose in degree is 1:
+        #   tree_cmds += eliminate_tree(header_node)
+        #   cmds += tree_cmds + ring_cmds
 
         for f, t in zip(var_from, var_to):
             if not isinstance(t, OperandReg): continue
