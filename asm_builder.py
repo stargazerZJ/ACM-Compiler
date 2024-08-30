@@ -393,25 +393,33 @@ if __name__ == '__main__':
         print(e.standardize())
         exit(1)
 
-    ir_builder = IRBuilder(recorder)
-    ir: IRModule = ir_builder.visit(tree)
-    print("IR building done", file=sys.stderr)
+    try:
+        ir_builder = IRBuilder(recorder)
+        ir: IRModule = ir_builder.visit(tree)
+        print("IR building done", file=sys.stderr)
+    except Exception as e:
+        print(f"IR building failed: {e}", file=sys.stderr)
+        exit(0)
 
-    ir.for_each_function_definition(mem2reg)
+    try:
+        ir.for_each_function_definition(mem2reg)
 
-    print("M2R done", file=sys.stderr)
-    with open("output.ll", "w") as f:
-        print(ir.llvm(), file=f)
-        print("IR output to" + "output.ll", file=sys.stderr)
+        print("M2R done", file=sys.stderr)
+        with open("output.ll", "w") as f:
+            print(ir.llvm(), file=f)
+            print("IR output to" + "output.ll", file=sys.stderr)
 
-    ir.for_each_block(mir_builder)
-    print("MIR done", file=sys.stderr)
-    with open("output-mir.ll", "w") as f:
-        print(ir.llvm(), file=f)
-        print("MIR output to" + "output.ll", file=sys.stderr)
+        ir.for_each_block(mir_builder)
+        print("MIR done", file=sys.stderr)
+        with open("output-mir.ll", "w") as f:
+            print(ir.llvm(), file=f)
+            print("MIR output to" + "output.ll", file=sys.stderr)
 
-    ir.for_each_function_definition(liveness_analysis)
-    print("Liveness analysis done", file=sys.stderr)
+        ir.for_each_function_definition(liveness_analysis)
+        print("Liveness analysis done", file=sys.stderr)
+    except Exception as e:
+        print(f"Optimization failed: {e}", file=sys.stderr)
+        exit(0)
 
     asm_builder = ASMBuilder(ir)
     asm = asm_builder.build()
