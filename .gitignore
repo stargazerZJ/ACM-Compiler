@@ -1,6 +1,6 @@
 testcases/
 testcases-old/
-#antlr_generated/
+antlr_generated/
 clang_generated/
 antlr/*.tokens
 tmp/
