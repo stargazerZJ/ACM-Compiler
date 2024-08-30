@@ -8,4 +8,4 @@ build:
 	zsh scripts/pybind11-build.zsh
 
 run:
-	python3 ir_builder.py
+	python3 asm_builder.py --stdin
