@@ -76,8 +76,9 @@ def spill(function: IRFunction):
                     # Temporary solution: if a variable is never used, spill it to stack to avoid error
                     # this problem will resolve after we implement dead code elimination
                     spill_to_stack(var, unassigned, allocation_table)
-    # function.unassigned = unassigned
-    # function.allocation_table = allocation_table
+    vars_ = unassigned.intersection(function.blocks[0].live_in)
+    if len(vars_) > K:
+        choose_spill(vars_, unassigned, allocation_table)
     return unassigned, allocation_table
 
 
