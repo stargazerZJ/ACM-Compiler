@@ -207,6 +207,10 @@ class ASMBlock:
             # unreachable block has no flow
         )
 
+    def estimated_size(self):
+        """Estimated number of instructions when generated to binary"""
+        return len(self.cmds) + 2
+
     def __repr__(self):
         return f'ASMBlock("{self.label}")'
 
