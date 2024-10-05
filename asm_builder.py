@@ -309,11 +309,9 @@ class ASMBuilder(ASMBuilderUtils):
                 continue
             phi_cmds: list[IRPhi] = list(filter(lambda phi: isinstance(phi, IRPhi), ir_block.cmds))
             phi_to = self.prepare_var_to([phi.dest for phi in phi_cmds])
-            print(f"processing {ir_block.name}: len phi is {len(phi_cmds)}", file=sys.stderr)
 
             for pred_id, ir_pred in enumerate(ir_block.predecessors):
                 ir_pred = ir_pred.block
-                print(f"Pred of block {ir_block.name}: {ir_pred.name}", file=sys.stderr)
                 pred = asm_blocks[ir_pred.index]
                 phi_from = self.prepare_var_from([phi.lookup(ir_pred) for phi in phi_cmds])
                 if len(ir_pred.successors) > 1:
@@ -433,7 +431,7 @@ if __name__ == '__main__':
         print(asm.riscv())
         with open("output-asm.s", "w") as f:
             print(asm.riscv(), file=f)
-            print("MIR output to" + "output.ll", file=sys.stderr)
+            print("ASM output to " + "output-asm.s", file=sys.stderr)
     except Exception as e:
         print(f"ASM building failed: {e}", file=sys.stderr)
         exit(0)
