@@ -106,7 +106,12 @@ class ASMBuilder(ASMBuilderUtils):
 
         if func.stack_size > 0:
             # TODO: stack_size >= 2048
-            header_block.add_cmd(ASMCmd("addi", "sp", ["sp", str(-func.stack_size)]))
+            if func.stack_size <= 2048:
+                header_block.add_cmd(ASMCmd("addi", "sp", ["sp", str(-func.stack_size)]))
+            else:
+                header_block.add_cmd(ASMCmd("li", "t0", [str(-func.stack_size)]))
+                header_block.add_cmd(ASMCmd("add", "sp", ["sp", "t0"]))
+
 
         param_from = [OperandReg("ra")] + self.prepare_params(len(ir_func.info.param_ir_names))
         param_to = self.prepare_var_to(["ret_addr"] + [

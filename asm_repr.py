@@ -142,7 +142,10 @@ class ASMFlowControl(ASMCmdBase):
     def riscv(self):
         if self.op == "ret":
             if self.function.stack_size != 0:
-                cmd = "addi sp, sp, " + str(self.function.stack_size) + "\n\tret"
+                if self.function.stack_size < 2048:
+                    cmd = "addi sp, sp, " + str(self.function.stack_size) + "\n\tret"
+                else:
+                    cmd = "li t0, " + str(self.function.stack_size) + "\n\tadd sp, sp, t0\n\tret"
             else:
                 cmd = "ret"
             return self.with_comment(cmd)
