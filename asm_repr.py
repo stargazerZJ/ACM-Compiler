@@ -75,7 +75,16 @@ class ASMMemOp(ASMCmdBase):
 
     def riscv(self):
         if self.relative is not None:
-            return self.with_comment(self.op + " " + self.reg + ", " + str(self.addr) + f"({self.relative})")
+            assert isinstance(self.addr, int)
+            if -2048 <= self.addr < 2048 :
+                return self.with_comment(self.op + " " + self.reg + ", " + str(self.addr) + f"({self.relative})")
+            else:
+                if self.tmp_reg is None and self.op == "lw":
+                    self.tmp_reg = self.reg
+                return self.with_comment(
+                    f"lui {self.tmp_reg}, %hi({self.addr})\n\t"
+                    f"add {self.tmp_reg}, {self.tmp_reg}, {self.relative}\n\t"
+                    f"{self.op} {self.reg}, %lo({self.addr})({self.tmp_reg})")
         cmd = self.op + " " + self.reg + ", " + self.addr
         if self.tmp_reg is not None:
             cmd += ", " + self.tmp_reg

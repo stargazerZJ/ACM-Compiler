@@ -106,7 +106,7 @@ class ASMBuilderUtils:
     def save_registers(self, regs: list[str], start_offset: int) -> list[ASMMemOp]:
         self.max_saved_reg = max(self.max_saved_reg, len(regs))
         return [
-            ASMMemOp("sw", reg, start_offset + i * 4, "sp")
+            ASMMemOp("sw", reg, start_offset + i * 4, "sp", tmp_reg="t0")
             for i, reg in enumerate(regs)
         ]
 
@@ -163,7 +163,7 @@ class ASMBuilderUtils:
                 return alloc.reg, None
             else:
                 alloc = cast(AllocationStack, alloc)
-                store_cmd = ASMMemOp("sw", tmp_reg, alloc.offset, "sp")
+                store_cmd = ASMMemOp("sw", tmp_reg, alloc.offset, "sp", tmp_reg=tmp_reg2)
                 return tmp_reg, store_cmd
         else:
             alloc = self.global_symbol_table[dest]
