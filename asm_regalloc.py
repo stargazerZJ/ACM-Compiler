@@ -3,6 +3,7 @@ from ir_repr import IRFunction, IRPhi, IRCall
 from opt_utils import build_graph
 
 K = 26  # ra, a0-a7, s0-s11, t2-t6
+# K = 0   # for debugging, spill everything to stack
 
 
 class AllocationBase:

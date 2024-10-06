@@ -1,4 +1,4 @@
-from doctest import UnexpectedException
+import functools
 
 from asm_repr import ASMBlock, ASMMemOp, ASMCmdBase, ASMCmd, ASMMove, ASMFunction
 from typing import cast
@@ -69,6 +69,48 @@ def eliminate_tree_reg(graph, u: str) -> list[ASMMove]:
     return ret
 
 
+def xor_swap_on_stack(tmp_reg1, tmp_reg2, var1: int, var2: int) -> list[ASMCmd | ASMMemOp]:
+    return [
+        # var1 <- var1 ^ var2
+        ASMMemOp("lw", tmp_reg1, var1, "sp"),
+        ASMMemOp("lw", tmp_reg2, var2, "sp"),
+        ASMCmd("xor", tmp_reg1, [tmp_reg1, tmp_reg2]),
+        ASMMemOp("sw", tmp_reg1, var1, "sp", tmp_reg=tmp_reg2),
+        # var2 <- var1 ^ var2
+        ASMMemOp("lw", tmp_reg1, var1, "sp"),
+        ASMMemOp("lw", tmp_reg2, var2, "sp"),
+        ASMCmd("xor", tmp_reg2, [tmp_reg1, tmp_reg2]),
+        ASMMemOp("sw", tmp_reg2, var2, "sp", tmp_reg=tmp_reg1),
+        # var1 <- var1 ^ var2
+        ASMMemOp("lw", tmp_reg1, var1, "sp"),
+        ASMMemOp("lw", tmp_reg2, var2, "sp"),
+        ASMCmd("xor", tmp_reg1, [tmp_reg1, tmp_reg2]),
+        ASMMemOp("sw", tmp_reg1, var1, "sp", tmp_reg=tmp_reg2)
+    ]
+
+
+def eliminate_ring_stack(tmp_reg1, tmp_reg2, nodes: list[int]) -> list[ASMCmdBase]:
+    ret = []
+    n = len(nodes)
+    if n == 1:
+        # self loop
+        return []
+    for i in range(n - 1, 0, -1):
+        ret.extend(xor_swap_on_stack(tmp_reg1, tmp_reg2, nodes[i], nodes[(i + 1) % n]))
+    return ret
+
+
+def eliminate_tree_stack(tmp_reg1, tmp_reg2, graph, u: int) -> list[ASMMemOp]:
+    ret = []
+    for v in graph[u]:
+        ret.extend(eliminate_tree_stack(tmp_reg1, tmp_reg2, graph, v))
+    ret.append(ASMMemOp("lw", tmp_reg1, u, "sp"))
+    for v in graph[u]:
+        # lw tmp_reg <- node v, sw tmp_reg -> node u
+        ret.append(ASMMemOp("sw", tmp_reg1, v, "sp", tmp_reg=tmp_reg2))
+    return ret
+
+
 def find_ring(graph: dict[str, list[str]]) -> list[str]:
     visited = set()
     path = []
@@ -94,14 +136,24 @@ def find_ring(graph: dict[str, list[str]]) -> list[str]:
     return []
 
 
-def eliminate_forest(graph, tmp_reg, eliminate_ring, eliminate_tree) \
+def eliminate_forest(graph, eliminate_ring, eliminate_tree) \
         -> tuple[list[ASMMove | ASMMemOp], list[ASMMove | ASMMemOp]]:
+    # steps:
+    # 1. find all rings
+    # 2. for each ring:
+    #   ring_nodes = nodes in the ring, in order
+    #   ring_cmds += eliminate_ring(ring_nodes)
+    #   delete the ring from the graph
+    # 3. Now the graph is a forest, for each node whose in degree is 1:
+    #   tree_cmds += eliminate_tree(header_node)
+    #   cmds += tree_cmds + ring_cmds
+
     ring_cmds: list[ASMMove | ASMMemOp] = []
     while True:
         ring = find_ring(graph)
         if not ring:
             break
-        ring_cmds.extend(eliminate_ring(tmp_reg, ring))
+        ring_cmds.extend(eliminate_ring(ring))
         for i in range(len(ring)):
             graph[ring[i]].remove(ring[(i + 1) % len(ring)])
 
@@ -113,17 +165,37 @@ def eliminate_forest(graph, tmp_reg, eliminate_ring, eliminate_tree) \
     return ring_cmds, tree_cmds
 
 
-def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | OperandReg], tmp_reg: str, tmp_reg2: str) \
+def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | OperandReg], tmp_reg: str,
+                       tmp_reg2: str) \
         -> list[ASMCmdBase]:
     assert len(var_from) == len(var_to)
     cmds: list[ASMCmdBase] = []
+
+    # the registers / stack offsets in var_to must be distinct,
+    # so the in degree of each node is <= 1
+    # so the graph is an outward base-ring-tree forest
+    graph_stack: dict[int, list[int]] = {}
+
+    # build the graph for stack
+    for f, t in zip(var_from, var_to):
+        if not isinstance(f, OperandStack) or not isinstance(t, OperandStack):
+            continue
+        f, t = f.offset, t.offset
+        if f not in graph_stack: graph_stack[f] = []
+        if t not in graph_stack: graph_stack[t] = []
+        graph_stack[f].append(t)
+
+    if graph_stack:
+        ring_cmds, tree_cmds = eliminate_forest(graph_stack,
+                                                functools.partial(eliminate_ring_stack, tmp_reg, tmp_reg2),
+                                                functools.partial(eliminate_tree_stack, tmp_reg, tmp_reg2))
+        cmds.extend(tree_cmds)
+        cmds.extend(ring_cmds)
+
     for f, t in zip(var_from, var_to):
         if isinstance(t, OperandStack):
             if isinstance(f, OperandStack):
-                if f.offset == t.offset:
-                    continue
-                cmds.append(ASMMemOp("lw", tmp_reg, f.offset, "sp"))
-                reg = tmp_reg
+                continue
             elif isinstance(f, OperandImm):
                 if f.imm == 0:
                     reg = "zero"
@@ -142,36 +214,25 @@ def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | 
                 reg = tmp_reg
             else:
                 raise AssertionError("Invalid source operand")
-            cmds.append(ASMMemOp("sw", reg, t.offset, "sp", tmp_reg=tmp_reg))
+            cmds.append(ASMMemOp("sw", reg, t.offset, "sp", tmp_reg=tmp_reg2))
 
-    # the registers in var_to must be distinct,
-    # so the in degree of each node is <= 1
-    # so the graph is an outward base-ring-tree forest
-    graph: dict[str, list[str]] = {}
+    graph_reg: dict[str, list[str]] = {}
 
-    # build the graph
+    # build the graph for register
     for f, t in zip(var_from, var_to):
         if not isinstance(f, OperandReg) or not isinstance(t, OperandReg):
             continue
         f, t = f.reg, t.reg
-        if f not in graph: graph[f] = []
-        if t not in graph: graph[t] = []
-        graph[f].append(t)
+        if f not in graph_reg: graph_reg[f] = []
+        if t not in graph_reg: graph_reg[t] = []
+        graph_reg[f].append(t)
 
-    # steps:
-    # 1. find all rings
-    # 2. for each ring:
-    #   ring_nodes = nodes in the ring, in order
-    #   ring_cmds += eliminate_ring(ring_nodes)
-    #   delete the ring from the graph
-    # 3. Now the graph is a forest, for each node whose in degree is 1:
-    #   tree_cmds += eliminate_tree(header_node)
-    #   cmds += tree_cmds + ring_cmds
-
-    ring_cmds, tree_cmds = eliminate_forest(graph, tmp_reg, eliminate_ring_reg, eliminate_tree_reg)
-
-    cmds.extend(tree_cmds)
-    cmds.extend(ring_cmds)
+    if graph_reg:
+        ring_cmds, tree_cmds = eliminate_forest(graph_reg,
+                                                functools.partial(eliminate_ring_reg, tmp_reg),
+                                                eliminate_tree_reg)
+        cmds.extend(tree_cmds)
+        cmds.extend(ring_cmds)
 
     for f, t in zip(var_from, var_to):
         if not isinstance(t, OperandReg): continue
