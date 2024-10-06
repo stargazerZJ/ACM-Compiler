@@ -220,7 +220,7 @@ class ASMBuilderUtils:
                 else:
                     f = cast(OperandReg, f)
                     reg = f.reg
-                cmds.append(ASMMemOp("sw", reg, t.offset, "sp"))
+                cmds.append(ASMMemOp("sw", reg, t.offset, "sp", tmp_reg=tmp_reg))
 
         # the registers in var_to must be distinct,
         # so the in degree of each node is <= 1
