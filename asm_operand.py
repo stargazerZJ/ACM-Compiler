@@ -113,7 +113,7 @@ def eliminate_forest(graph, tmp_reg, eliminate_ring, eliminate_tree) \
     return ring_cmds, tree_cmds
 
 
-def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | OperandReg], tmp_reg: str) \
+def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | OperandReg], tmp_reg: str, tmp_reg2: str) \
         -> list[ASMCmdBase]:
     assert len(var_from) == len(var_to)
     cmds: list[ASMCmdBase] = []

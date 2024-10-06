@@ -120,7 +120,7 @@ class ASMBuilder(ASMBuilderUtils):
         for from_ in param_from:
             if isinstance(from_, OperandStack):
                 from_.offset += func.stack_size
-        header_block.add_cmd(*self.rearrange_operands(param_from, param_to, "t0"))
+        header_block.add_cmd(*self.rearrange_operands(param_from, param_to, ("t0", "t1")))
 
         header_block.add_cmd(*save_register_cmds)
 
@@ -290,7 +290,7 @@ class ASMBuilder(ASMBuilderUtils):
 
                 param_to = self.prepare_params(param_count)
                 param_from = self.prepare_var_from(cmd.var_use)
-                block.add_cmd(*self.rearrange_operands(param_from, param_to, "t0"))
+                block.add_cmd(*self.rearrange_operands(param_from, param_to, ("t0", "t1")))
 
                 block.add_cmd(ASMCall(func_name))
 
@@ -299,7 +299,7 @@ class ASMBuilder(ASMBuilderUtils):
 
                 if cmd.dest:
                     result_to = self.prepare_var_to(cmd.var_def)
-                    block.add_cmd(*self.rearrange_operands([OperandReg("a0")], result_to, "t0"))
+                    block.add_cmd(*self.rearrange_operands([OperandReg("a0")], result_to, ("t0", "t1")))
 
                 block.add_cmd(*self.restore_registers(caller_regs, self.current_function.stack_size))
             # There is no alloca nor gep in the input IR
@@ -322,7 +322,7 @@ class ASMBuilder(ASMBuilderUtils):
                 phi_from = self.prepare_var_from([phi.lookup(ir_pred) for phi in phi_cmds])
                 if len(ir_pred.successors) > 1:
                     new_block = ASMBlock(self.block_namer.get())
-                    new_block.add_cmd(*self.rearrange_operands(phi_from, phi_to, "t0"))
+                    new_block.add_cmd(*self.rearrange_operands(phi_from, phi_to, ("t0", "t1")))
                     if pred.successors[0] is block:
                         pred.successors[0] = new_block
                     else:
@@ -335,7 +335,7 @@ class ASMBuilder(ASMBuilderUtils):
                     block.predecessors[pred_id] = new_block
                     new_blocks.append(new_block)
                 else:
-                    pred.add_cmd(*self.rearrange_operands(phi_from, phi_to, "t0"))
+                    pred.add_cmd(*self.rearrange_operands(phi_from, phi_to, ("t0", "t1")))
         asm_blocks.extend(new_blocks)
 
     def relax_branch_offsets(self, blocks: list[ASMBlock]):

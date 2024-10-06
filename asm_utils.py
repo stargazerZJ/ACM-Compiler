@@ -160,9 +160,9 @@ class ASMBuilderUtils:
         return lhs_operand, rhs_operand
 
     @staticmethod
-    def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | OperandReg], tmp_reg: str) \
+    def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | OperandReg], tmp_reg: tuple[str, str]) \
             -> list[ASMCmdBase]:
-        return rearrange_operands(var_from, var_to, tmp_reg)
+        return rearrange_operands(var_from, var_to, tmp_reg[0], tmp_reg[1])
 
 
     def print_allocation_info(self, file=sys.stderr):
