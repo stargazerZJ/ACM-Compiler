@@ -1,7 +1,7 @@
 import sys
 from typing import cast
 
-from asm_operand import OperandBase, OperandReg, OperandImm, OperandStack, OperandGlobal, rearrange_variables
+from asm_operand import OperandBase, OperandReg, OperandImm, OperandStack, OperandGlobal, rearrange_operands
 from asm_regalloc import AllocationRegister, AllocationStack, AllocationGlobal, AllocationBase
 from asm_repr import ASMBlock, ASMMemOp, ASMCmdBase, ASMCmd, ASMMove, ASMFunction
 from opt_mem2reg import IRUndefinedValue
@@ -160,9 +160,9 @@ class ASMBuilderUtils:
         return lhs_operand, rhs_operand
 
     @staticmethod
-    def rearrange_variables(var_from: list[OperandBase], var_to: list[OperandStack | OperandReg], tmp_reg: str) \
+    def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | OperandReg], tmp_reg: str) \
             -> list[ASMCmdBase]:
-        return rearrange_variables(var_from, var_to, tmp_reg)
+        return rearrange_operands(var_from, var_to, tmp_reg)
 
 
     def print_allocation_info(self, file=sys.stderr):

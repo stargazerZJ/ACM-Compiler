@@ -43,7 +43,7 @@ class OperandGlobal(OperandBase):
         self.label = label
 
 
-def rearrange_variables(var_from: list[OperandBase], var_to: list[OperandStack | OperandReg], tmp_reg: str) \
+def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | OperandReg], tmp_reg: str) \
         -> list[ASMCmdBase]:
     assert len(var_from) == len(var_to)
     cmds: list[ASMCmdBase] = []
