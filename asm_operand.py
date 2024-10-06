@@ -65,7 +65,7 @@ def eliminate_tree_reg(graph, u: str) -> list[ASMMove]:
     for v in graph[u]:
         ret.extend(eliminate_tree_reg(graph, v))
     for v in graph[u]:
-        ret.append(ASMMove(v, u))  # move v -> u
+        ret.append(ASMMove(v, u))  # move v <- u
     return ret
 
 
