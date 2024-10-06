@@ -40,7 +40,7 @@ class PhiMap:
     values: dict[int, str]
 
     def __init__(self, pointer_name: str):
-        self.dest = renamer.get_name(pointer_name.rstrip(".ptr") + ".val")
+        self.dest = renamer.get_name(pointer_name.removesuffix(".ptr") + ".val")
         self.values = {}
 
 
