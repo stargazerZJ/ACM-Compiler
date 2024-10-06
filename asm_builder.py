@@ -80,10 +80,15 @@ class ASMBuilder(ASMBuilderUtils):
                              + [f"t{i}" for i in range(2, 7)])
 
         func.stack_size += max(0, len(ir_func.info.param_ir_names) - 8) * 4
+        stack_allocation_table: dict[str, int] = {}
         for var, alloc in allocation_table.items():
             if isinstance(alloc, AllocationStack):
-                alloc.offset = func.stack_size
-                func.stack_size += 4
+                if alloc.pointer_name in stack_allocation_table:
+                    alloc.offset = stack_allocation_table[alloc.pointer_name]
+                else:
+                    alloc.offset = func.stack_size
+                    func.stack_size += 4
+                    stack_allocation_table[alloc.pointer_name] = alloc.offset
             else:
                 alloc: AllocationRegister
                 alloc.reg = register_list[alloc.logical_id]
