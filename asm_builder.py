@@ -338,7 +338,8 @@ class ASMBuilder(ASMBuilderUtils):
                     pred.add_cmd(*self.rearrange_operands(phi_from, phi_to, ("t0", "t1")))
         asm_blocks.extend(new_blocks)
 
-    def relax_branch_offsets(self, blocks: list[ASMBlock]):
+    @staticmethod
+    def relax_branch_offsets(blocks: list[ASMBlock]):
         tolerance = 800
         sizes = [block.estimated_size() for block in blocks]
         prefix_sums = [0] + list(itertools.accumulate(sizes))
