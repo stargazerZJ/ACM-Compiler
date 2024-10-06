@@ -3,7 +3,8 @@ import itertools
 from asm_regalloc import AllocationGlobal, allocate_registers, AllocationStack, AllocationRegister
 from asm_repr import ASMGlobal, ASMFunction, ASMStr, ASMModule, ASMBlock, ASMCmd, ASMMemOp, ASMFlowControl, \
     ASMMove, ASMCall
-from asm_utils import ASMBuilderUtils, BlockNamer, OperandReg, OperandImm, OperandStack
+from asm_utils import ASMBuilderUtils, BlockNamer
+from asm_operand import OperandReg, OperandImm, OperandStack
 from ir_repr import IRGlobal, IRModule, IRFunction, IRStr, IRBlock, IRPhi, IRBinOp, IRIcmp, IRLoad, IRStore, \
     IRJump, IRBranch, IRRet, IRCall
 
