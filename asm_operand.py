@@ -1,3 +1,5 @@
+from doctest import UnexpectedException
+
 from asm_repr import ASMBlock, ASMMemOp, ASMCmdBase, ASMCmd, ASMMove, ASMFunction
 from typing import cast
 
@@ -128,9 +130,18 @@ def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | 
                 else:
                     cmds.append(ASMCmd("li", tmp_reg, [str(f)]))
                     reg = tmp_reg
-            else:
+            elif isinstance(f, OperandReg):
                 f = cast(OperandReg, f)
                 reg = f.reg
+            elif isinstance(f, OperandGlobal):
+                if f.label.startswith(".str"):
+                    cmds.append(ASMMemOp("la", tmp_reg, f.label))
+                else:
+                    cmds.append(ASMMemOp("lw", tmp_reg, f.label))
+                    raise AssertionError("Global variable should not be used as source operand")
+                reg = tmp_reg
+            else:
+                raise AssertionError("Invalid source operand")
             cmds.append(ASMMemOp("sw", reg, t.offset, "sp", tmp_reg=tmp_reg))
 
     # the registers in var_to must be distinct,
@@ -173,5 +184,6 @@ def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | 
                 cmds.append(ASMMemOp("la", t.reg, f.label))
             else:
                 cmds.append(ASMMemOp("lw", t.reg, f.label))
+                raise AssertionError("Global variable should not be used as source operand")
 
     return cmds
