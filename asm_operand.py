@@ -43,6 +43,74 @@ class OperandGlobal(OperandBase):
         self.label = label
 
 
+def eliminate_ring_reg(tmp_reg, nodes: list[str]) -> list[ASMMove]:
+    n = len(nodes)
+    if n == 1:
+        # self loop
+        return []
+    ret = [ASMMove(tmp_reg, nodes[0]), ASMMove(nodes[0], nodes[n - 1])]
+    # tmp <- 0, 0 <- (n-1)
+    for i in range(n - 1, 1, -1):
+        # (n-1) <- (n-2), ..., 2 <- 1
+        ret.append(ASMMove(nodes[i], nodes[i - 1]))
+    # 1 <- tmp
+    ret.append(ASMMove(nodes[1], tmp_reg))
+    return ret
+
+
+def eliminate_tree_reg(graph, u: str) -> list[ASMMove]:
+    ret = []
+    for v in graph[u]:
+        ret.extend(eliminate_tree_reg(graph, v))
+    for v in graph[u]:
+        ret.append(ASMMove(v, u))  # move v -> u
+    return ret
+
+
+def find_ring(graph: dict[str, list[str]]) -> list[str]:
+    visited = set()
+    path = []
+
+    def dfs(node: str) -> list[str] | None:
+        if node in visited:
+            if node in path:
+                return path[path.index(node):]
+            return None
+        visited.add(node)
+        path.append(node)
+        for neighbor in graph[node]:
+            result = dfs(neighbor)
+            if result:
+                return result
+        path.pop()
+        return None
+
+    for node in graph:
+        ring = dfs(node)
+        if ring:
+            return ring
+    return []
+
+
+def eliminate_forest(graph, tmp_reg, eliminate_ring, eliminate_tree) \
+        -> tuple[list[ASMMove | ASMMemOp], list[ASMMove | ASMMemOp]]:
+    ring_cmds: list[ASMMove | ASMMemOp] = []
+    while True:
+        ring = find_ring(graph)
+        if not ring:
+            break
+        ring_cmds.extend(eliminate_ring(tmp_reg, ring))
+        for i in range(len(ring)):
+            graph[ring[i]].remove(ring[(i + 1) % len(ring)])
+
+    tree_cmds: list[ASMMove | ASMMemOp] = []
+    in_degree = {node: sum(node in graph[v] for v in graph) for node in graph}
+    for node in graph:
+        if in_degree[node] == 0:
+            tree_cmds.extend(eliminate_tree(graph, node))
+    return ring_cmds, tree_cmds
+
+
 def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | OperandReg], tmp_reg: str) \
         -> list[ASMCmdBase]:
     assert len(var_from) == len(var_to)
@@ -79,28 +147,6 @@ def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | 
         if t not in graph: graph[t] = []
         graph[f].append(t)
 
-    def eliminate_tree(u: str) -> list[ASMMove]:
-        ret = []
-        for v in graph[u]:
-            ret.extend(eliminate_tree(v))
-        for v in graph[u]:
-            ret.append(ASMMove(v, u))  # move v -> u
-        return ret
-
-    def eliminate_ring(nodes: list[str]) -> list[ASMMove]:
-        n = len(nodes)
-        if n == 1:
-            # self loop
-            return []
-        ret = [ASMMove(tmp_reg, nodes[0]), ASMMove(nodes[0], nodes[n - 1])]
-        # tmp <- 0, 0 <- (n-1)
-        for i in range(n - 1, 1, -1):
-            # (n-1) <- (n-2), ..., 2 <- 1
-            ret.append(ASMMove(nodes[i], nodes[i - 1]))
-        # 1 <- tmp
-        ret.append(ASMMove(nodes[1], tmp_reg))
-        return ret
-
     # steps:
     # 1. find all rings
     # 2. for each ring:
@@ -111,44 +157,7 @@ def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | 
     #   tree_cmds += eliminate_tree(header_node)
     #   cmds += tree_cmds + ring_cmds
 
-    def find_ring(graph: dict[str, list[str]]) -> list[str]:
-        visited = set()
-        path = []
-
-        def dfs(node: str) -> list[str] | None:
-            if node in visited:
-                if node in path:
-                    return path[path.index(node):]
-                return None
-            visited.add(node)
-            path.append(node)
-            for neighbor in graph[node]:
-                result = dfs(neighbor)
-                if result:
-                    return result
-            path.pop()
-            return None
-
-        for node in graph:
-            ring = dfs(node)
-            if ring:
-                return ring
-        return []
-
-    ring_cmds: list[ASMMove] = []
-    while True:
-        ring = find_ring(graph)
-        if not ring:
-            break
-        ring_cmds.extend(eliminate_ring(ring))
-        for i in range(len(ring)):
-            graph[ring[i]].remove(ring[(i + 1) % len(ring)])
-
-    tree_cmds: list[ASMMove] = []
-    in_degree = {node: sum(node in graph[v] for v in graph) for node in graph}
-    for node in graph:
-        if in_degree[node] == 0:
-            tree_cmds.extend(eliminate_tree(node))
+    ring_cmds, tree_cmds = eliminate_forest(graph, tmp_reg, eliminate_ring_reg, eliminate_tree_reg)
 
     cmds.extend(tree_cmds)
     cmds.extend(ring_cmds)
