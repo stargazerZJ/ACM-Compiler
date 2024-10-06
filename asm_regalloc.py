@@ -110,6 +110,7 @@ def allocate_registers(function: IRFunction):
             spill_to_stack(param + ".param", unassigned, allocation_table)
 
     for ind in dfs_order:
+        vacant = set(range(K))
         block = blocks[ind]
         for var in block.live_in:
             if var in allocation_table:
