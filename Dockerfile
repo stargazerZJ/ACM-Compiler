@@ -1,8 +1,8 @@
 # Use the official Python image from the Alpine variant
 FROM python:3.12-alpine
 
-# Install zsh and make
-RUN apk add --no-cache zsh make
+# Install zsh, clang18 and make
+RUN apk add --no-cache zsh clang18 make
 
 # Set the working directory in the container
 WORKDIR /app
