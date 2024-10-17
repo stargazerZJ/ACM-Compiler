@@ -7,6 +7,7 @@ from asm_utils import ASMBuilderUtils, BlockNamer
 from asm_operand import OperandReg, OperandImm, OperandStack
 from ir_repr import IRGlobal, IRModule, IRFunction, IRStr, IRBlock, IRPhi, IRBinOp, IRIcmp, IRLoad, IRStore, \
     IRJump, IRBranch, IRRet, IRCall
+from opt_dce import naive_dce
 
 
 # def function_param_generator() -> OperandReg | OperandStack:
@@ -418,6 +419,9 @@ if __name__ == '__main__':
         with open("output.ll", "w") as f:
             print(ir.llvm(), file=f)
             print("IR output to " + "output.ll", file=sys.stderr)
+
+        ir.for_each_function_definition(naive_dce)
+        print("DCE done", file=sys.stderr)
 
         ir.for_each_block(mir_builder)
         print("MIR done", file=sys.stderr)

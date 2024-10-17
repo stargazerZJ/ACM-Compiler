@@ -34,6 +34,11 @@ class IRUndefinedValue:
     def __str__(self):
         return self.llvm()
 
+    # noinspection PyMethodMayBeStatic
+    def startswith(self, prefix: str):
+        """For compatibility with the original code"""
+        return False
+
 
 class PhiMap:
     dest: str
