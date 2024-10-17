@@ -34,10 +34,11 @@ class FunctionInfo:
     param_ir_names: list[str]
     local_vars: list[VariableInfo]
     is_member: bool
+    no_effect: bool
 
     def __init__(self, name: str = "", ir_name: str = "", ret_type: TypeBase = None, param_types: list[TypeBase] = None,
                  param_ir_names: list[str] = None,
-                 is_member: bool = False):
+                 is_member: bool = False, no_effect: bool = False):
         self.name = name
         self.ir_name = ir_name
         self.ret_type = ret_type
@@ -58,7 +59,7 @@ class FunctionInfo:
         param_types += [typ.internal_type() for typ in func.param_types]
         param_ir_names = [""] * len(func.param_types)
         return FunctionInfo(func.name, func.ir_name, ret_type=ret_type, param_types=param_types, param_ir_names=param_ir_names,
-                            is_member=is_member)
+                            is_member=is_member, no_effect=func.no_effect)
 
 
 builtin_function_infos: Dict[str, FunctionInfo] = {

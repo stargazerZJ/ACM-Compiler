@@ -52,12 +52,14 @@ class TypeBase:
 class FunctionType(TypeBase):
     ret_type: TypeBase
     param_types: list[TypeBase]
+    no_effect: bool
 
-    def __init__(self, name: str, ret_type: TypeBase, param_types: list[TypeBase], ir_name: str = None):
+    def __init__(self, name: str, ret_type: TypeBase, param_types: list[TypeBase], ir_name: str = None, no_effect: bool = False):
         ir_name = ir_name or "@" + name
         super().__init__(name, ir_name)
         self.ret_type = ret_type
         self.param_types = param_types
+        self.no_effect = no_effect
 
     def call(self, param_types: list[TypeBase], ctx: ParserRuleContext = None) -> TypeBase:
         if len(param_types) != len(self.param_types):
@@ -121,11 +123,11 @@ class BuiltinVoidType(TypeBase):
 class BuiltinStringType(TypeBase):
     def __init__(self):
         super().__init__("string")
-        self.add_member("length", FunctionType("length", BuiltinIntType(), [], "@string_length"))
+        self.add_member("length", FunctionType("length", BuiltinIntType(), [], "@string_length", no_effect=True))
         self.add_member("substring",
-                        FunctionType("substring", self, [BuiltinIntType(), BuiltinIntType()], "@string_substring"))
-        self.add_member("parseInt", FunctionType("parseInt", BuiltinIntType(), [], "@string_parseInt"))
-        self.add_member("ord", FunctionType("ord", BuiltinIntType(), [BuiltinIntType()], "@string_ord"))
+                        FunctionType("substring", self, [BuiltinIntType(), BuiltinIntType()], "@string_substring", no_effect=True))
+        self.add_member("parseInt", FunctionType("parseInt", BuiltinIntType(), [], "@string_parseInt", no_effect=True))
+        self.add_member("ord", FunctionType("ord", BuiltinIntType(), [BuiltinIntType()], "@string_ord", no_effect=True))
 
     def can_be_null(self, ctx: ParserRuleContext = None) -> bool:
         return False
@@ -182,7 +184,7 @@ builtin_functions = {
     "printlnInt": FunctionType("printlnInt", builtin_types["void"], [builtin_types["int"]]),
     "getString": FunctionType("getString", builtin_types["string"], []),
     "getInt": FunctionType("getInt", builtin_types["int"], []),
-    "toString": FunctionType("toString", builtin_types["string"], [builtin_types["int"]]),
+    "toString": FunctionType("toString", builtin_types["string"], [builtin_types["int"]], no_effect=True),
 }
 
 internal_functions = {
@@ -191,10 +193,10 @@ internal_functions = {
     "string_parseInt": builtin_types["string"].members["parseInt"],
     "string_ord": builtin_types["string"].members["ord"],
     "string_add": FunctionType("string_add", builtin_types["string"],
-                               [builtin_types["string"], builtin_types["string"]]),
+                               [builtin_types["string"], builtin_types["string"]], no_effect=True),
     "strcmp": FunctionType("strcmp", builtin_types["int"],
-                               [builtin_types["string"], builtin_types["string"]]),
-    "malloc": FunctionType("malloc", InternalPtrType(builtin_types["int"]), [builtin_types["int"]]),
+                               [builtin_types["string"], builtin_types["string"]], no_effect=True),
+    "malloc": FunctionType("malloc", InternalPtrType(builtin_types["int"]), [builtin_types["int"]], no_effect=True),
     # array.size is always inlined, so we don't need to define it here
 }
 

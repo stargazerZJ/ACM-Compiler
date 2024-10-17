@@ -7,6 +7,7 @@ class IRCmdBase:
     var_def: list[str]
     var_use: list[str]
     live_out: set[str]
+    node: str
 
     def llvm(self) -> str:
         raise NotImplementedError()
@@ -208,6 +209,7 @@ class IRRet(IRCmdBase):
 class IRPhi(IRCmdBase):
     typ: str
     sources: list[IRBlock]
+
     def __init__(self, dest: str, typ: str, values: list[tuple[IRBlock, str]]):
         self.var_def = [dest]
         self.var_use = [v[1] for v in values]
@@ -215,7 +217,8 @@ class IRPhi(IRCmdBase):
         self.sources = [v[0] for v in values]
 
     @property
-    def dest(self): return self.var_def[0]
+    def dest(self):
+        return self.var_def[0]
 
     def lookup(self, block: IRBlock):
         for source, value in zip(self.sources, self.var_use):
@@ -328,10 +331,13 @@ class IRFunction:
     info: FunctionInfo
     blocks: list[IRBlock] | None
     var_defs: set[str]
+    is_leaf: bool
+    no_effect: bool
 
     def __init__(self, info: FunctionInfo, chain: BlockChain = None):
         self.info = info
         self.blocks = chain.collect_blocks() if chain is not None else None
+        self.no_effect = info.no_effect
 
     def llvm(self):
         if self.is_declare():
