@@ -46,6 +46,7 @@ class FunctionInfo:
         self.param_ir_names = param_ir_names
         self.local_vars = []
         self.is_member = is_member
+        self.no_effect = no_effect
 
     @staticmethod
     def from_function_type(func: FunctionType):
