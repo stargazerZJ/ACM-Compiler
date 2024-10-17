@@ -1,7 +1,7 @@
 import dominator
 from ir_renamer import renamer
 from ir_repr import IRBlock, IRFunction, IRStore, IRAlloca, IRLoad, IRPhi, UnreachableBlock
-from opt_utils import mark_blocks, build_graph
+from opt_utils import mark_blocks, build_control_flow_graph
 
 
 def collect_mem_defs(blocks: list[IRBlock], allocas: set[str]):
@@ -49,7 +49,7 @@ def mem2reg(function: IRFunction):
     n = len(blocks)
 
     mark_blocks(blocks)
-    cfg = build_graph(blocks)
+    cfg = build_control_flow_graph(blocks)
     allocas, type_map = collect_allocas(blocks)
     defs = collect_mem_defs(blocks, allocas)
     dominance_frontier_pred = dominator.get_indirect_predecessor_set_of_dominator_frontier(cfg)

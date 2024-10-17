@@ -1,6 +1,6 @@
 import dominator
 from ir_repr import IRFunction, IRPhi, IRCall
-from opt_utils import build_graph
+from opt_utils import build_control_flow_graph
 
 K = 26  # ra, a0-a7, s0-s11, t2-t6
 # K = 0   # for debugging, spill everything to stack
@@ -86,7 +86,7 @@ def spill(function: IRFunction):
 def allocate_registers(function: IRFunction):
     blocks = function.blocks
 
-    cfg = build_graph(blocks)
+    cfg = build_control_flow_graph(blocks)
     dfs_order = dominator.get_dominator_tree_dfs_order(cfg)
 
     unassigned, allocation_table = spill(function)

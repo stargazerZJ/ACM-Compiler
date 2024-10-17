@@ -7,5 +7,5 @@ def mark_blocks(blocks: list[IRBlock]):
         block.index = ind
 
 
-def build_graph(blocks: list[IRBlock]) -> dominator.graph_type:
+def build_control_flow_graph(blocks: list[IRBlock]) -> dominator.graph_type:
     return [[s.index for s in block.successors] for block in blocks]
