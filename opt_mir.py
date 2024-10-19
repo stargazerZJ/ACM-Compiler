@@ -51,7 +51,8 @@ def imm_overflow(value: str) -> bool:
     return parse_imm(value) > 2047 or parse_imm(value) < -2048
 
 
-def build_mir_block(block):
+
+def build_mir_block(block, icmp_map: dict[str, IRIcmp]):
     new_list: list[IRCmdBase] = []
     # opt: merge icmp and branch (future)
     for cmd in block.cmds:
@@ -75,6 +76,7 @@ def build_mir_block(block):
                     li_rhs(cmd, new_list)
             new_list.append(cmd)
         elif isinstance(cmd, IRIcmp):
+            icmp_map[cmd.dest] = IRIcmp(cmd.dest, cmd.op, cmd.typ, cmd.lhs, cmd.rhs)
             if cmd.op in ["eq", "ne"]:
                 if is_zero(cmd.lhs):
                     swap_operands(cmd)
@@ -158,6 +160,18 @@ def build_mir_block(block):
             if is_imm(cmd.cond):
                 li_name = add_li(new_list, cmd.cond, "i1")
                 cmd.var_use[0] = li_name
+            elif cmd.cond in icmp_map:
+                icmp_cmd = icmp_map[cmd.cond]
+                icmp_name = renamer.get_name("%.br")
+                icmp_cmd = IRIcmp(icmp_name, icmp_cmd.op, icmp_cmd.typ, icmp_cmd.lhs, icmp_cmd.rhs)
+                if is_zero(icmp_cmd.lhs):
+                    swap_operands(icmp_cmd)
+                    icmp_cmd.op = {"eq": "eq", "ne": "ne", "slt": "sgt", "sgt": "slt", "sle": "sge", "sge": "sle"}[icmp_cmd.op]
+                if is_imm(icmp_cmd.lhs):
+                    li_lhs(icmp_cmd, new_list)
+                if is_imm(icmp_cmd.rhs) and not is_zero(icmp_cmd.rhs):
+                    li_rhs(icmp_cmd, new_list)
+                cmd.set_icmp(icmp_cmd)
             new_list.append(cmd)
         # elif isinstance(cmd, IRRet):
         #     if cmd.value and is_imm(cmd.value):
@@ -171,6 +185,6 @@ def build_mir_block(block):
 
 
 def mir_builder(function: IRFunction):
+    icmp_map = {}
     for block in function.blocks:
-        build_mir_block(block)
-
+        build_mir_block(block, icmp_map)

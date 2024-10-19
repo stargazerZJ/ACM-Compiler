@@ -185,12 +185,21 @@ class IRBranch(IRCmdBase):
         self.var_use = [cond]
         self.true_dest = true_dest
         self.false_dest = false_dest
+        self.icmp: IRIcmp | None = None
 
     @property
     def cond(self): return self.var_use[0]
 
     def llvm(self):
-        return f"br i1 {self.cond}, label %{self.true_dest.llvm()}, label %{self.false_dest.llvm()}"
+        if self.icmp is not None:
+            branch = f"br i1 {self.icmp.var_def[0]}, label %{self.true_dest.llvm()}, label %{self.false_dest.llvm()}"
+            return f"{self.icmp.llvm()}\n  {branch}"
+        else:
+            return f"br i1 {self.cond}, label %{self.true_dest.llvm()}, label %{self.false_dest.llvm()}"
+
+    def set_icmp(self, icmp: IRIcmp):
+        self.icmp = icmp
+        self.var_use = icmp.var_use
 
 
 class IRRet(IRCmdBase):

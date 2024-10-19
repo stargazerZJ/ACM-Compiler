@@ -1,5 +1,5 @@
 import dominator
-from ir_repr import IRBlock, IRModule, IRCmdBase
+from ir_repr import IRBlock, IRModule, IRCmdBase, IRFunction
 
 
 def mark_blocks(blocks: list[IRBlock]):
@@ -20,3 +20,20 @@ def collect_commands(blocks: list[IRBlock]) -> list:
 
 def collect_var_use(cmds: list[IRCmdBase]) -> set[str]:
     return set(use for cmd in cmds for use in cmd.var_use)
+
+def rearrange_in_rpo(function: IRFunction):
+    """Rearrange blocks in reverse post order"""
+    blocks = function.blocks
+    visited = set()
+    new_blocks = []
+
+    def dfs(index: int):
+        visited.add(index)
+        for succ in blocks[index].successors:
+            if succ.index not in visited:
+                dfs(succ.index)
+        new_blocks.append(blocks[index])
+
+    dfs(0)
+    function.blocks = new_blocks[::-1]
+    return new_blocks

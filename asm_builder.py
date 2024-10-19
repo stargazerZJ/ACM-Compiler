@@ -8,6 +8,7 @@ from asm_operand import OperandReg, OperandImm, OperandStack
 from ir_repr import IRGlobal, IRModule, IRFunction, IRStr, IRBlock, IRPhi, IRBinOp, IRIcmp, IRLoad, IRStore, \
     IRJump, IRBranch, IRRet, IRCall
 from opt_dce import naive_dce
+from opt_utils import rearrange_in_rpo
 
 
 # def function_param_generator() -> OperandReg | OperandStack:
@@ -118,7 +119,6 @@ class ASMBuilder(ASMBuilderUtils):
             else:
                 header_block.add_cmd(ASMCmd("li", "t0", [str(-func.stack_size)]))
                 header_block.add_cmd(ASMCmd("add", "sp", ["sp", "t0"]))
-
 
         param_from = [OperandReg("ra")] + self.prepare_params(len(ir_func.info.param_ir_names))
         param_to = self.prepare_var_to(["ret_addr"] + [
@@ -253,9 +253,22 @@ class ASMBuilder(ASMBuilderUtils):
             elif isinstance(cmd, IRJump):
                 block.set_flow_control(ASMFlowControl.jump(block))
             elif isinstance(cmd, IRBranch):
-                cond, _ = self.prepare_operand(block, cmd.cond, "t0")
-                assert isinstance(cond, OperandReg)
-                block.set_flow_control(ASMFlowControl.branch("bnez", [str(cond)], block))
+                if cmd.icmp is not None:
+                    lhs, rhs = self.prepare_operands(block, cmd.icmp.lhs, cmd.icmp.rhs)
+                    if isinstance(rhs, OperandImm) and rhs.imm == 0:
+                        op = {"eq": "beqz", "ne": "bnez", "slt": "bltz",
+                              "sgt": "bgtz", "sle": "blez", "sge": "bgez"
+                              }[cmd.icmp.op]
+                        block.set_flow_control(ASMFlowControl.branch(op, [str(lhs)], block))
+                    else:
+                        op = {"eq": "beq", "ne": "bne", "slt": "blt",
+                              "sgt": "bgt", "sle": "ble", "sge": "bge"
+                              }[cmd.icmp.op]
+                        block.set_flow_control(ASMFlowControl.branch(op, [str(lhs), str(rhs)], block))
+                else:
+                    cond, _ = self.prepare_operand(block, cmd.cond, "t0")
+                    assert isinstance(cond, OperandReg)
+                    block.set_flow_control(ASMFlowControl.branch("bnez", [str(cond)], block))
             elif isinstance(cmd, IRRet):
                 if cmd.value:
                     value, _ = self.prepare_operand(block, cmd.value, "a0")
@@ -416,15 +429,22 @@ if __name__ == '__main__':
         ir.for_each_function_definition(mem2reg)
 
         print("M2R done", file=sys.stderr)
-        with open("output.ll", "w") as f:
-            print(ir.llvm(), file=f)
-            print("IR output to " + "output.ll", file=sys.stderr)
 
         ir.for_each_function_definition(naive_dce)
         print("DCE done", file=sys.stderr)
 
+        ir.for_each_function_definition(rearrange_in_rpo)
+
+        with open("output.ll", "w") as f:
+            print(ir.llvm(), file=f)
+            print("IR output to " + "output.ll", file=sys.stderr)
+
         ir.for_each_function_definition(mir_builder)
         print("MIR done", file=sys.stderr)
+
+        ir.for_each_function_definition(naive_dce)
+        print("DCE done", file=sys.stderr)
+
         with open("output-mir.ll", "w") as f:
             print(ir.llvm(), file=f)
             print("MIR output to " + "output-mir.ll", file=sys.stderr)
