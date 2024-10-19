@@ -357,6 +357,7 @@ class IRFunction:
     def __init__(self, info: FunctionInfo, chain: BlockChain = None):
         self.info = info
         self.blocks = chain.collect_blocks() if chain is not None else None
+        self.is_leaf = False
         self.no_effect = info.no_effect
 
     def llvm(self):

@@ -56,8 +56,12 @@ def naive_dce(function: IRFunction):
         block.cmds = [cmd for cmd in block.cmds if cmd.node in live]
 
     # Remove unused var_def for IRCall
+    # and maintain function.is_leaf
+    function.is_leaf = True
     cmds = collect_commands(blocks)
     var_use = collect_var_use(cmds)
     for cmd in cmds:
-        if isinstance(cmd, IRCall) and cmd.var_def and cmd.var_def[0] not in var_use:
-            cmd.var_def = []
+        if isinstance(cmd, IRCall):
+            function.is_leaf = False
+            if cmd.var_def and cmd.var_def[0] not in var_use:
+                cmd.var_def = []

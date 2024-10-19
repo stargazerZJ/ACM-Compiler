@@ -70,7 +70,7 @@ class ASMBuilder(ASMBuilderUtils):
         self.current_function = func
         callee_reg = set()
         header_name = self.block_namer.get()
-        if hasattr(ir_func, "is_leaf"):
+        if ir_func.is_leaf:
             register_list = (["ra"]
                              + [f"a{i}" for i in range(8)]
                              + [f"t{i}" for i in range(2, 7)]
