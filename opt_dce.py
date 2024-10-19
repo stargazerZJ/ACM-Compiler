@@ -16,7 +16,7 @@ def build_node(cmds: list[IRCmdBase]):
             cmd.node = "store"
         elif isinstance(cmd, IRCall):
             # Only void function call goes here
-            cmd.node = "call_no" if cmd.func.no_effect else "call"
+            cmd.node = "call_no" if cmd.func.no_effect and not cmd.tail_call else "call"
         else:
             raise AssertionError("Invalid node")
 

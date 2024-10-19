@@ -247,11 +247,22 @@ class IRCall(IRCmdBase):
         self.var_use = args
         self.func = func
         self.typ = func.ret_type.ir_name
+        self.tail_call = False
 
     @property
     def dest(self): return self.var_def[0] if self.var_def else ""
 
+    def set_tail_call(self):
+        self.tail_call = True
+        self.var_def = []
+        self.var_use = ["ret_addr"] + self.var_use
+
     def llvm(self):
+        if self.tail_call:
+            param_list = ", ".join(f"{ty.ir_name} {name}" for ty, name in zip(self.func.param_types, self.var_use[1:]))
+            tail_call = f"{self.dest} = tail call {self.typ} {self.func.ir_name}({param_list})" if self.dest else f"tail call {self.typ} {self.func.ir_name}({param_list})"
+            ret = f"ret {self.typ} {self.var_use[0]}"
+            return f"{tail_call}\n  {ret}"
         param_list = ", ".join(f"{ty.ir_name} {name}" for ty, name in zip(self.func.param_types, self.var_use))
         return f"{self.dest} = call {self.typ} {self.func.ir_name}({param_list})" if self.dest else f"call {self.typ} {self.func.ir_name}({param_list})"
 

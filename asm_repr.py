@@ -76,7 +76,7 @@ class ASMMemOp(ASMCmdBase):
     def riscv(self):
         if self.relative is not None:
             assert isinstance(self.addr, int)
-            if -2048 <= self.addr < 2048 :
+            if -2048 <= self.addr < 2048:
                 return self.with_comment(self.op + " " + self.reg + ", " + str(self.addr) + f"({self.relative})")
             else:
                 if self.tmp_reg is None and self.op == "lw":
@@ -119,14 +119,15 @@ class ASMFlowControl(ASMCmdBase):
         return ASMFlowControl(op, operands, block, comment)
 
     @staticmethod
-    def ret(function: "ASMFunction", comment: str = None):
+    def ret(current_function: "ASMFunction", comment: str = None):
         ret = ASMFlowControl("ret", [], None, comment)
-        ret.__setattr__("function", function)
+        ret.__setattr__("function", current_function)
         return ret
 
     @staticmethod
-    def tail(self, function: str, comment: str = None):
+    def tail(function: str, current_function: "ASMFunction", comment: str = None):
         tail = ASMFlowControl("tail", [], None, comment)
+        tail.__setattr__("function", current_function)
         tail.__setattr__("tail_function", function)
         return tail
 
@@ -149,17 +150,14 @@ class ASMFlowControl(ASMCmdBase):
         }[self.op]
 
     def riscv(self):
-        if self.op == "ret":
+        if self.op == "ret" or self.op == "tail":
+            cmd = "ret" if self.op == "ret" else "tail " + self.tail_function
             if self.function.stack_size != 0:
                 if self.function.stack_size < 2048:
-                    cmd = "addi sp, sp, " + str(self.function.stack_size) + "\n\tret"
+                    cmd = "addi sp, sp, " + str(self.function.stack_size) + "\n\t" + cmd
                 else:
-                    cmd = "li t0, " + str(self.function.stack_size) + "\n\tadd sp, sp, t0\n\tret"
-            else:
-                cmd = "ret"
+                    cmd = "li t0, " + str(self.function.stack_size) + "\n\tadd sp, sp, t0\n\t" + cmd
             return self.with_comment(cmd)
-        if self.op == "tail":
-            return self.with_comment("tail " + self.tail_function)
         if self.op == "j":
             if self.can_fallthrough:
                 return self.with_comment("")

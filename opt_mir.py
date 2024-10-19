@@ -1,5 +1,5 @@
 from ir_renamer import renamer
-from ir_repr import IRBlock, IRBinOp, IRIcmp, IRGetElementPtr, IRCmdBase, IRStore, IRRet, IRBranch, IRFunction
+from ir_repr import IRBlock, IRBinOp, IRIcmp, IRGetElementPtr, IRCmdBase, IRStore, IRRet, IRBranch, IRFunction, IRCall
 from opt_mem2reg import IRUndefinedValue
 
 
@@ -54,7 +54,6 @@ def imm_overflow(value: str) -> bool:
 
 def build_mir_block(block, icmp_map: dict[str, IRIcmp]):
     new_list: list[IRCmdBase] = []
-    # opt: merge icmp and branch (future)
     for cmd in block.cmds:
         if isinstance(cmd, IRBinOp):
             if cmd.op in ["add", "and", "or", "xor"]:
@@ -173,11 +172,17 @@ def build_mir_block(block, icmp_map: dict[str, IRIcmp]):
                     li_rhs(icmp_cmd, new_list)
                 cmd.set_icmp(icmp_cmd)
             new_list.append(cmd)
-        # elif isinstance(cmd, IRRet):
-        #     if cmd.value and is_imm(cmd.value):
-        #         li_name = add_li(new_list, cmd.value, cmd.typ)
-        #         cmd.var_use[1] = li_name
-        #     new_list.append(cmd)
+        elif isinstance(cmd, IRRet):
+            # if cmd.value and is_imm(cmd.value):
+            #     # This is done in asm_builder
+            #     li_name = add_li(new_list, cmd.value, cmd.typ)
+            #     cmd.var_use[1] = li_name
+            last_cmd = new_list[-1] if new_list else None
+            if isinstance(last_cmd, IRCall) and last_cmd.var_def == cmd.var_use[1:] and len(last_cmd.var_use) <= 8:
+                last_cmd.set_tail_call()
+                # new_list.append(cmd)
+            else:
+                new_list.append(cmd)
         else:
             new_list.append(cmd)
         # opt: merge addi and load/store (future)

@@ -282,7 +282,7 @@ class ASMBuilder(ASMBuilderUtils):
                 if isinstance(ra_alloc, AllocationStack):
                     block.add_cmd(ASMMemOp("lw", "ra", ra_alloc.offset, "sp"))
                 block.set_flow_control(ASMFlowControl.ret(self.current_function))  # includes `addi sp`
-            elif isinstance(cmd, IRCall):
+            elif isinstance(cmd, IRCall) and not cmd.tail_call:
                 func_name = cmd.func.ir_name.lstrip("@")
 
                 caller_regs = set()
@@ -321,6 +321,21 @@ class ASMBuilder(ASMBuilderUtils):
                     block.add_cmd(*self.rearrange_operands([OperandReg("a0")], result_to, ("t0", "t1")))
 
                 block.add_cmd(*self.restore_registers(caller_regs, self.current_function.stack_size))
+            elif isinstance(cmd, IRCall) and cmd.tail_call:
+                func_name = cmd.func.ir_name.lstrip("@")
+
+                param_count = len(cmd.func.param_types)
+
+                assert param_count <= 8, "Tail call with more than 8 parameters"
+
+                param_to = [OperandReg("ra")] + self.prepare_params(param_count)
+                param_from = self.prepare_var_from(cmd.var_use)
+                block.add_cmd(*self.rearrange_operands(param_from, param_to, ("t0", "t1")))
+
+                block.add_cmd(*self.restore_registers(self.callee_reg, self.current_function.stack_size))
+
+                block.set_flow_control(ASMFlowControl.tail(func_name, self.current_function))  # includes `addi sp`
+
             # There is no alloca nor gep in the input IR
             else:
                 raise NotImplementedError(f"Unsupported command: {cmd}")
