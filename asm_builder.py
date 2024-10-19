@@ -423,7 +423,7 @@ if __name__ == '__main__':
         ir.for_each_function_definition(naive_dce)
         print("DCE done", file=sys.stderr)
 
-        ir.for_each_block(mir_builder)
+        ir.for_each_function_definition(mir_builder)
         print("MIR done", file=sys.stderr)
         with open("output-mir.ll", "w") as f:
             print(ir.llvm(), file=f)

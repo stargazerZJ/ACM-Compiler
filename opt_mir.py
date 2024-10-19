@@ -1,5 +1,5 @@
 from ir_renamer import renamer
-from ir_repr import IRBlock, IRBinOp, IRIcmp, IRGetElementPtr, IRCmdBase, IRStore, IRRet, IRBranch
+from ir_repr import IRBlock, IRBinOp, IRIcmp, IRGetElementPtr, IRCmdBase, IRStore, IRRet, IRBranch, IRFunction
 from opt_mem2reg import IRUndefinedValue
 
 
@@ -51,7 +51,7 @@ def imm_overflow(value: str) -> bool:
     return parse_imm(value) > 2047 or parse_imm(value) < -2048
 
 
-def mir_builder(block: IRBlock):
+def build_mir_block(block):
     new_list: list[IRCmdBase] = []
     # opt: merge icmp and branch (future)
     for cmd in block.cmds:
@@ -120,9 +120,9 @@ def mir_builder(block: IRBlock):
         elif isinstance(cmd, IRGetElementPtr):
             # Not compatible with LLVM IR, as IR disallows pointer arithmetic
             operand = cmd.ptr
-            flag = False    # command added
+            flag = False  # command added
             if cmd.arr_index != "0":
-                shl_offset = {"%.arr": "3", "i32" : "2", "ptr" : "2", "i1" :"0"}[cmd.typ.ir_name]
+                shl_offset = {"%.arr": "3", "i32": "2", "ptr": "2", "i1": "0"}[cmd.typ.ir_name]
                 if shl_offset != "0":
                     name = renamer.get_name("%.shl")
                     shl_cmd = IRBinOp(name, "shl", cmd.arr_index, shl_offset, "i32")
@@ -168,4 +168,9 @@ def mir_builder(block: IRBlock):
             new_list.append(cmd)
         # opt: merge addi and load/store (future)
         block.cmds = new_list
+
+
+def mir_builder(function: IRFunction):
+    for block in function.blocks:
+        build_mir_block(block)
 
