@@ -67,6 +67,8 @@ def spill_to_stack(var, unassigned, allocation_table):
 def spill(function: IRFunction):
     unassigned = function.var_defs.copy()
     allocation_table: dict[str, AllocationBase] = {}
+    if not function.is_leaf:
+        spill_to_stack("ret_addr", unassigned, allocation_table)
     for block in function.blocks:
         for cmd in block.cmds:
             vars_ = unassigned.intersection(cmd.live_out)
