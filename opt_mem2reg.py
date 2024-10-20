@@ -123,6 +123,7 @@ def mem2reg(function: IRFunction):
                   [(blocks[i], value) for i, value in phi.values.items()])
             for pointer_name, phi in phi_map_item.items()
         ]
+        phi_cmds.sort(key=lambda cmd: cmd.dest)
 
         block.cmds = phi_cmds + block.cmds
 

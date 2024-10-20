@@ -83,6 +83,8 @@ class ASMBuilder(ASMBuilderUtils):
 
         func.stack_size += max(0, len(ir_func.info.param_ir_names) - 8) * 4
         stack_allocation_table: dict[str, int] = {}
+        max_call_param = self.get_max_call_param(ir_func.blocks)
+        func.stack_size += 4 * max(0, max_call_param - 8)
         for var, alloc in allocation_table.items():
             if isinstance(alloc, AllocationStack):
                 if alloc.pointer_name in stack_allocation_table:
@@ -95,21 +97,23 @@ class ASMBuilder(ASMBuilderUtils):
                 alloc: AllocationRegister
                 alloc.reg = register_list[alloc.logical_id]
                 callee_reg.add(alloc.reg)
-        self.callee_reg = list(callee_reg.intersection(set(
+        self.callee_reg: set[str] = callee_reg.intersection(set(
             [f"s{i}" for i in range(12)]
-        )))
-        self.callee_reg.sort()
-        del callee_reg
+        ))
 
+        [self.build_block(block) for block in ir_func.blocks]   # the first pass is to ensure the correctness of self.callee_reg and self.max_saved_reg
         blocks = [self.build_block(block) for block in ir_func.blocks]
         self.link_blocks(blocks, ir_func)  # and write jump/branch destinations
         self.eliminate_phi(blocks)
 
         header_block = ASMBlock(header_name)
 
-        save_register_cmds = self.save_registers(self.callee_reg, func.stack_size)
-
+        callee_reg_sorted = list(self.callee_reg)
+        callee_reg_sorted.sort()
         func.stack_size += self.max_saved_reg * 4
+        save_register_cmds = self.save_registers(callee_reg_sorted, func.stack_size)
+        func.stack_size += len(callee_reg_sorted) * 4
+
         func.stack_size = (func.stack_size + 15) // 16 * 16
 
         if func.stack_size > 0:
@@ -277,7 +281,9 @@ class ASMBuilder(ASMBuilderUtils):
                         value = OperandReg("a0")
                     if value.reg != "a0":
                         block.add_cmd(ASMMove("a0", str(value)))
-                block.add_cmd(*self.restore_registers(self.callee_reg, self.current_function.stack_size))
+                callee_reg_sorted = list(self.callee_reg)
+                callee_reg_sorted.sort()
+                block.add_cmd(*self.restore_registers(callee_reg_sorted, self.current_function.stack_size + self.max_saved_reg * 4))
                 ra_alloc = self.allocation_table["ret_addr"]
                 if isinstance(ra_alloc, AllocationStack):
                     block.add_cmd(ASMMemOp("lw", "ra", ra_alloc.offset, "sp"))
@@ -285,12 +291,21 @@ class ASMBuilder(ASMBuilderUtils):
             elif isinstance(cmd, IRCall) and not cmd.tail_call:
                 func_name = cmd.func.ir_name.lstrip("@")
 
+                # TODO: save registers to s0-s11 if possible
                 caller_regs = set()
                 for var in cmd.live_out:
                     if var == cmd.dest: continue
                     alloc = self.allocation_table[var]
                     if isinstance(alloc, AllocationRegister):
                         caller_regs.add(alloc.reg)
+                # available_caller_saved_regs = set(
+                #     [f"s{i}" for i in range(12)]
+                # ).difference(caller_regs)
+                # available_caller_saved_regs = list(available_caller_saved_regs)
+                # available_caller_saved_regs.sort()
+                # available_caller_saved_regs = []
+                available_caller_saved_regs = [f"s{i}" for i in range(12)]
+                available_caller_saved_regs = [reg for reg in available_caller_saved_regs if reg not in caller_regs]
                 caller_regs.intersection_update(
                     ["ra"]
                     + [f"t{i}" for i in range(2, 7)]
@@ -298,29 +313,46 @@ class ASMBuilder(ASMBuilderUtils):
                 )
                 caller_regs = list(caller_regs)
                 caller_regs.sort()
-                block.add_cmd(*self.save_registers(caller_regs, self.current_function.stack_size))
+                self.max_saved_reg = max(self.max_saved_reg, len(caller_regs) - len(available_caller_saved_regs))
+                caller_regs_save_to = []
+                for i, reg in enumerate(caller_regs):
+                    if i < len(available_caller_saved_regs):
+                        caller_regs_save_to.append(OperandReg(available_caller_saved_regs[i]))
+                        self.callee_reg.add(available_caller_saved_regs[i])
+                    else:
+                        caller_regs_save_to.append(
+                            OperandStack(self.current_function.stack_size + (i - len(available_caller_saved_regs)) * 4))
+                caller_regs_save_from = [OperandReg(reg) for reg in caller_regs]
+                # block.add_cmd(*self.rearrange_operands(caller_regs_save_from, caller_regs_save_to, ("t0", "t1")))
 
                 param_count = len(cmd.func.param_types)
 
-                stack_delta = max(0, param_count - 8) * 4
-                stack_delta = (stack_delta + 15) // 16 * 16
-                if stack_delta > 0:
-                    block.add_cmd(ASMCmd("addi", "sp", ["sp", str(-stack_delta)]))
+                # stack_delta = max(0, param_count - 8) * 4
+                # stack_delta = (stack_delta + 15) // 16 * 16
+                # if stack_delta > 0:
+                #     # assert False, "Too many parameters"
+                #     block.add_cmd(ASMCmd("addi", "sp", ["sp", str(-stack_delta)]))
 
                 param_to = self.prepare_params(param_count)
                 param_from = self.prepare_var_from(cmd.var_use)
-                block.add_cmd(*self.rearrange_operands(param_from, param_to, ("t0", "t1")))
+                block.add_cmd(*self.rearrange_operands(
+                    param_from + caller_regs_save_from,
+                    param_to + caller_regs_save_to,
+                    ("t0", "t1")))
 
                 block.add_cmd(ASMCall(func_name))
 
-                if stack_delta > 0:
-                    block.add_cmd(ASMCmd("addi", "sp", ["sp", str(stack_delta)]))
+                # if stack_delta > 0:
+                #     block.add_cmd(ASMCmd("addi", "sp", ["sp", str(stack_delta)]))
 
                 if cmd.dest:
-                    result_to = self.prepare_var_to(cmd.var_def)
-                    block.add_cmd(*self.rearrange_operands([OperandReg("a0")], result_to, ("t0", "t1")))
+                    restore_from = [OperandReg("a0")] + caller_regs_save_to
+                    restore_to = self.prepare_var_to(cmd.var_def) + caller_regs_save_from
+                else:
+                    restore_from = caller_regs_save_to
+                    restore_to = caller_regs_save_from
 
-                block.add_cmd(*self.restore_registers(caller_regs, self.current_function.stack_size))
+                block.add_cmd(*self.rearrange_operands(restore_from, restore_to, ("t0", "t1")))
             elif isinstance(cmd, IRCall) and cmd.tail_call:
                 func_name = cmd.func.ir_name.lstrip("@")
 
@@ -332,7 +364,9 @@ class ASMBuilder(ASMBuilderUtils):
                 param_from = self.prepare_var_from(cmd.var_use)
                 block.add_cmd(*self.rearrange_operands(param_from, param_to, ("t0", "t1")))
 
-                block.add_cmd(*self.restore_registers(self.callee_reg, self.current_function.stack_size))
+                callee_reg_sorted = list(self.callee_reg)
+                callee_reg_sorted.sort()
+                block.add_cmd(*self.restore_registers(callee_reg_sorted, self.current_function.stack_size + self.max_saved_reg * 4))
 
                 block.set_flow_control(ASMFlowControl.tail(func_name, self.current_function))  # includes `addi sp`
 

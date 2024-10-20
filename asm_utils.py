@@ -4,6 +4,7 @@ from typing import cast
 from asm_operand import OperandBase, OperandReg, OperandImm, OperandStack, OperandGlobal, rearrange_operands
 from asm_regalloc import AllocationRegister, AllocationStack, AllocationGlobal, AllocationBase
 from asm_repr import ASMBlock, ASMMemOp, ASMCmdBase, ASMCmd, ASMMove, ASMFunction
+from ir_repr import IRBlock, IRCall
 from opt_mem2reg import IRUndefinedValue
 
 
@@ -163,6 +164,16 @@ class ASMBuilderUtils:
     def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | OperandReg], tmp_reg: tuple[str, str]) \
             -> list[ASMCmdBase]:
         return rearrange_operands(var_from, var_to, tmp_reg[0], tmp_reg[1])
+
+    @staticmethod
+    def get_max_call_param(blocks: list[IRBlock]):
+        """Get the maximum number of parameters in a function call"""
+        return max(
+            (len(cmd.func.param_types)
+            for block in blocks
+            for cmd in block.cmds
+            if isinstance(cmd, IRCall)
+        ), default=0)
 
 
     def print_allocation_info(self, file=sys.stderr):
