@@ -168,7 +168,7 @@ def eliminate_forest(graph, eliminate_ring, eliminate_tree) \
 def rearrange_operands(var_from: list[OperandBase], var_to: list[OperandStack | OperandReg], tmp_reg: str,
                        tmp_reg2: str) \
         -> list[ASMCmdBase]:
-    assert len(var_from) == len(var_to)
+    assert len(var_from) == len(var_to), "The number of operands should be the same"
     cmds: list[ASMCmdBase] = []
 
     # the registers / stack offsets in var_to must be distinct,
