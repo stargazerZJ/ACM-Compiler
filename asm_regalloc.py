@@ -63,22 +63,32 @@ def spill_to_stack(var, unassigned, allocation_table):
     unassigned.remove(var)
     allocation_table[var] = AllocationStack(pointer_name)
 
+def get_short_lived_vars(function: IRFunction):
+    """Get variables that are only used in the next instruction after definition"""
+    short_lived_vars = set()
+    for block in function.blocks:
+        for i in range(len(block.cmds) - 1):
+            cmd = block.cmds[i]
+            next_cmd = block.cmds[i + 1]
+            for var in cmd.var_def:
+                if var not in next_cmd.live_out:
+                    short_lived_vars.add(var)
+    return short_lived_vars
 
 def spill(function: IRFunction):
     unassigned = function.var_defs.copy()
     allocation_table: dict[str, AllocationBase] = {}
+    short_lived_vars = get_short_lived_vars(function)
     if not function.is_leaf:
         spill_to_stack("ret_addr", unassigned, allocation_table)
     for block in function.blocks:
         for cmd in block.cmds:
             vars_ = unassigned.intersection(cmd.live_out)
             if len(vars_) > K:
+                no_short_lived = vars_.intersection(short_lived_vars)
+                if len(no_short_lived) > K:
+                    vars_ = no_short_lived
                 choose_spill(vars_, unassigned, allocation_table)
-            for var in cmd.var_def:
-                if var not in cmd.live_out:
-                    # Temporary solution: if a variable is never used, spill it to stack to avoid error
-                    # this problem will resolve after we implement dead code elimination
-                    spill_to_stack(var, unassigned, allocation_table)
     vars_ = unassigned.intersection(function.blocks[0].live_in)
     if len(vars_) > K:
         choose_spill(vars_, unassigned, allocation_table)
