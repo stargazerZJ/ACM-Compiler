@@ -121,8 +121,9 @@ def allocate_registers(function: IRFunction):
         if param + ".param" in function.blocks[0].live_in:
             allocate(param + ".param")
         else:
-            # spill unused param to stack (temporary)
-            spill_to_stack(param + ".param", unassigned, allocation_table)
+            # spill unused param to stack (temporary, will be resolved after global DCE)
+            # spill_to_stack(param + ".param", unassigned, allocation_table)
+            allocate(param + ".param") # WRONG if there is > K unused params
 
     for ind in dfs_order:
         vacant = set(range(K))
