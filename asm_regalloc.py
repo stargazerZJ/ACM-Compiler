@@ -3,7 +3,7 @@ from ir_repr import IRFunction, IRPhi, IRCall
 from opt_utils import build_control_flow_graph
 
 K = 26  # ra, a0-a7, s0-s11, t2-t6
-# K = 0   # for debugging, spill everything to stack
+# K = 1   # for debugging, spill everything to stack
 
 
 class AllocationBase:
@@ -31,6 +31,7 @@ class AllocationRegister(AllocationBase):
     def __repr__(self):
         return f"Allocated on register {self.reg: <5}"
 
+
 class AllocationGlobal(AllocationBase):
     label: str
 
@@ -49,8 +50,8 @@ def get_pointer_name(var: str):
     return var.rsplit(".val", 1)[0] + ".ptr"
 
 
-def choose_spill(vars_: set[str], unassigned: set[str], allocation_table: dict[str, AllocationBase]):
-    n = len(vars_) - K
+def choose_spill(vars_: set[str], unassigned: set[str], allocation_table: dict[str, AllocationBase], k: int = K):
+    n = len(vars_) - k
     for _ in range(n):
         # var = vars_.pop()
         var = min(vars_)
@@ -62,6 +63,7 @@ def spill_to_stack(var, unassigned, allocation_table):
     pointer_name = get_pointer_name(var)
     unassigned.remove(var)
     allocation_table[var] = AllocationStack(pointer_name)
+
 
 def get_short_lived_vars(function: IRFunction):
     """Get variables that are only used in the next instruction after definition"""
@@ -75,6 +77,7 @@ def get_short_lived_vars(function: IRFunction):
                     short_lived_vars.add(var)
     return short_lived_vars
 
+
 def spill(function: IRFunction):
     unassigned = function.var_defs.copy()
     allocation_table: dict[str, AllocationBase] = {}
@@ -85,10 +88,10 @@ def spill(function: IRFunction):
         for cmd in block.cmds:
             vars_ = unassigned.intersection(cmd.live_out)
             if len(vars_) > K:
-                no_short_lived = vars_.intersection(short_lived_vars)
-                if len(no_short_lived) > K:
-                    vars_ = no_short_lived
-                choose_spill(vars_, unassigned, allocation_table)
+                intersection = vars_.intersection(short_lived_vars)
+                # intersection = set()
+                vars_ -= intersection
+                choose_spill(vars_, unassigned, allocation_table, K - len(intersection))
     vars_ = unassigned.intersection(function.blocks[0].live_in)
     if len(vars_) > K:
         choose_spill(vars_, unassigned, allocation_table)
