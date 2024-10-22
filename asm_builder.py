@@ -67,7 +67,7 @@ class ASMBuilder(ASMBuilderUtils):
             register_list = (["ra"]
                              + [f"a{i}" for i in range(8)]
                              + [f"s{i}" for i in range(12)]
-                             + [f"t{i}" for i in range(2, 7)] )
+                             + [f"t{i}" for i in range(2, 7)])
         else:
             register_list = (["ra"]
                              + [f"a{i}" for i in range(8)]

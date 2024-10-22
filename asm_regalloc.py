@@ -123,7 +123,7 @@ def allocate_registers(function: IRFunction):
         else:
             # spill unused param to stack (temporary, will be resolved after global DCE)
             # spill_to_stack(param + ".param", unassigned, allocation_table)
-            allocate(param + ".param") # WRONG if there is > K unused params
+            allocate(param + ".param")  # WRONG if there is > K unused params
 
     for ind in dfs_order:
         vacant = set(range(K))

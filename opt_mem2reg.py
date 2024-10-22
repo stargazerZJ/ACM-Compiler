@@ -114,8 +114,8 @@ def mem2reg(function: IRFunction):
         if isinstance(block, UnreachableBlock):
             continue
 
-        if any( all(isinstance(value, IRUndefinedValue) for value in phi.values.values())
-                for phi in phi_map_item.values()):
+        if any(all(isinstance(value, IRUndefinedValue) for value in phi.values.values())
+               for phi in phi_map_item.values()):
             block.is_unreachable = True
 
         phi_cmds = [
@@ -123,7 +123,7 @@ def mem2reg(function: IRFunction):
                   [(blocks[i], value) for i, value in phi.values.items()])
             for pointer_name, phi in phi_map_item.items()
         ]
-        phi_cmds.sort(key=lambda cmd: cmd.dest)
+        phi_cmds.sort(key=lambda cmd: cmd.dest, reverse=True)
 
         block.cmds = phi_cmds + block.cmds
 
