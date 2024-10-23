@@ -88,7 +88,7 @@ void *__new_int_1d_array__(int size) {
 }
 
 void *__new_bool_1d_array__(int size) {
-	return malloc(size << 1);
+	return malloc(size);
 }
 
 void *__new_ptr_1d_array__(int size) {
