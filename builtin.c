@@ -83,53 +83,75 @@ char *string_add(char *str1, char *str2) {
 	return buffer;
 }
 
+void *__new_1d_array__(int size, int elem_size) {
+    return malloc(size * elem_size);
+}
+
 void *__new_int_1d_array__(int size) {
-	return malloc(size << 2);
+    return __new_1d_array__(size, 4);  // sizeof(int) == 4
 }
 
 void *__new_bool_1d_array__(int size) {
-	return malloc(size);
+    return __new_1d_array__(size, 1);  // sizeof(bool) == 1
 }
 
 void *__new_ptr_1d_array__(int size) {
 #ifdef HOST
-	int *array = malloc(size << 3);
+    return __new_1d_array__(size, 8);  // sizeof(void*) == 8 on 64-bit
 #else
-	int *array = malloc(size << 2);
+    return __new_1d_array__(size, 4);  // sizeof(void*) == 4 on 32-bit
 #endif
-	return array;
 }
 
 void *__new_arr_ptr_1d_array__(int size) {
 #ifdef HOST
-	int *array = malloc(size << 4);
+    return __new_1d_array__(size, 16); // sizeof(array_ptr) == 16 (ptr + length)
 #else
-	int *array = malloc(size << 3);
+    return __new_1d_array__(size, 8);  // sizeof(array_ptr) == 8 on 32-bit
 #endif
-	return array;
 }
 
-void *__new_2d_array__(int size, int size2, void *(*__new_1d_array__)(int)) {
-    size_t *array = __new_arr_ptr_1d_array__(size);
+void *__new_2d_array__(int size, int size2, int elem_size) {
+    // Calculate total size needed
+    size_t header_size = size * 2 * sizeof(size_t);  // For storing pointers and lengths
+    size_t data_size = size * size2 * elem_size;     // For all secondary arrays
+
+    // Allocate one contiguous block
+    char *block = malloc(header_size + data_size);
+
+    // Setup header array (array of pointers and lengths)
+    size_t *array = (size_t*)block;
+    char *data = block + header_size;
+
+    // Initialize pointers and lengths
     for (int i = 0; i < size * 2; i += 2) {
-        array[i] = (size_t)__new_1d_array__(size2); // actual type is void *
-        array[i + 1] = size2;   // length
+        array[i] = (size_t)(data + (i/2) * size2 * elem_size); // Point to appropriate section
+        array[i + 1] = size2;                                  // Store length
     }
+
     return array;
 }
 
 void *__new_int_2d_array__(int size, int size2) {
-	return __new_2d_array__(size, size2, __new_int_1d_array__);
+    return __new_2d_array__(size, size2, 4);  // sizeof(int) == 4
 }
 
 void *__new_bool_2d_array__(int size, int size2) {
-	return __new_2d_array__(size, size2, __new_bool_1d_array__);
+    return __new_2d_array__(size, size2, 1);  // sizeof(bool) == 1
 }
 
 void *__new_ptr_2d_array__(int size, int size2) {
-	return __new_2d_array__(size, size2, __new_ptr_1d_array__);
+#ifdef HOST
+    return __new_2d_array__(size, size2, 8);  // sizeof(void*) == 8 on 64-bit
+#else
+    return __new_2d_array__(size, size2, 4);  // sizeof(void*) == 4 on 32-bit
+#endif
 }
 
 void *__new_arr_ptr_2d_array__(int size, int size2) {
-	return __new_2d_array__(size, size2, __new_arr_ptr_1d_array__);
+#ifdef HOST
+    return __new_2d_array__(size, size2, 16); // sizeof(array_ptr) == 16
+#else
+    return __new_2d_array__(size, size2, 8);  // sizeof(array_ptr) == 8 on 32-bit
+#endif
 }
