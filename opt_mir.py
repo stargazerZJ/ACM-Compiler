@@ -50,6 +50,8 @@ def parse_imm(value: str):
 def imm_overflow(value: str) -> bool:
     return parse_imm(value) > 2047 or parse_imm(value) < -2048
 
+def is_power_of_two(value: int) -> bool:
+    return value != 0 and (value & (value - 1)) == 0
 
 
 def build_mir_block(block, icmp_map: dict[str, IRIcmp]):
@@ -68,11 +70,18 @@ def build_mir_block(block, icmp_map: dict[str, IRIcmp]):
                 if is_imm(cmd.rhs) and imm_overflow(cmd.rhs):
                     li_rhs(cmd, new_list)
             elif cmd.op in ["mul", "sdiv", "srem"]:
+                if cmd.op == "mul" and is_imm(cmd.lhs):
+                    swap_operands(cmd)
                 if is_imm(cmd.lhs):
                     li_lhs(cmd, new_list)
                 if is_imm(cmd.rhs):
                     # opt: x / const optimization (future)
-                    li_rhs(cmd, new_list)
+                    imm = parse_imm(cmd.rhs)
+                    if cmd.op == "mul" and is_power_of_two(imm):
+                        new_list.append(IRBinOp(cmd.dest, "shl", cmd.lhs, str(imm.bit_length() - 1), cmd.typ))
+                        continue
+                    else:
+                        li_rhs(cmd, new_list)
             new_list.append(cmd)
         elif isinstance(cmd, IRIcmp):
             icmp_map[cmd.dest] = IRIcmp(cmd.dest, cmd.op, cmd.typ, cmd.lhs, cmd.rhs)
