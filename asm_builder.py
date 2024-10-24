@@ -328,12 +328,10 @@ class ASMBuilder(ASMBuilderUtils):
                     restore_to = caller_regs_save_from
 
                 block.add_cmd(*self.rearrange_operands(restore_from, restore_to, ("t0", "t1")))
-            elif isinstance(cmd, IRCall) and cmd.tail_call:
+            elif isinstance(cmd, IRCall) and cmd.tail_call and not cmd.self_tail_call:
                 func_name = cmd.func.ir_name.lstrip("@")
 
                 param_count = len(cmd.func.param_types)
-
-                assert param_count <= 8, "Tail call with more than 8 parameters"
 
                 param_to = [OperandReg("ra")] + self.prepare_params(param_count)
                 param_from = self.prepare_var_from(cmd.var_use)
@@ -345,7 +343,11 @@ class ASMBuilder(ASMBuilderUtils):
                                                       self.current_function.stack_size + self.max_saved_reg * 4))
 
                 block.set_flow_control(ASMFlowControl.tail(func_name, self.current_function))  # includes `addi sp`
-
+            elif isinstance(cmd, IRCall) and cmd.self_tail_call:
+                param_from = self.prepare_var_from(cmd.var_use[1:])  # exclude ret_addr
+                param_to = self.prepare_var_to([param + ".param" for param in cmd.func.param_ir_names])
+                block.add_cmd(*self.rearrange_operands(param_from, param_to, ("t0", "t1")))
+                # block.set_flow_control(ASMFlowControl.jump(block, "tail"))
             # There is no alloca nor gep in the input IR
             else:
                 raise NotImplementedError(f"Unsupported command: {cmd}")

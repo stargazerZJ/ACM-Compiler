@@ -248,6 +248,7 @@ class IRCall(IRCmdBase):
         self.func = func
         self.typ = func.ret_type.ir_name
         self.tail_call = False
+        self.self_tail_call = False
 
     @property
     def dest(self): return self.var_def[0] if self.var_def else ""

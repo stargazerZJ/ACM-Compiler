@@ -1,5 +1,7 @@
 from ir_renamer import renamer
-from ir_repr import IRBlock, IRBinOp, IRIcmp, IRGetElementPtr, IRCmdBase, IRStore, IRRet, IRBranch, IRFunction, IRCall
+from ir_repr import IRBlock, IRBinOp, IRIcmp, IRGetElementPtr, IRCmdBase, IRStore, IRRet, IRBranch, IRFunction, IRCall, \
+    IRJump, BBExit, unreachable_block
+from ir_utils import BlockChain
 from opt_mem2reg import IRUndefinedValue
 
 
@@ -187,18 +189,22 @@ def build_mir_block(block, icmp_map: dict[str, IRIcmp]):
             #     li_name = add_li(new_list, cmd.value, cmd.typ)
             #     cmd.var_use[1] = li_name
             last_cmd = new_list[-1] if new_list else None
-            if isinstance(last_cmd, IRCall) and last_cmd.var_def == cmd.var_use[1:] and len(last_cmd.var_use) <= 8:
+            if isinstance(last_cmd, IRCall) and last_cmd.var_def == cmd.var_use[1:]:
                 last_cmd.set_tail_call()
-                # new_list.append(cmd)
+                if last_cmd.func.ir_name == function.info.ir_name:
+                    # convert self-recursive tail call into loop
+                    last_cmd.self_tail_call = True
+                    block.successors = [unreachable_block]
+                    BlockChain.link_exits_to_block([BBExit(block, 0)], function.blocks[0])
             else:
                 new_list.append(cmd)
         else:
             new_list.append(cmd)
         # opt: merge addi and load/store (future)
-        block.cmds = new_list
+    block.cmds = new_list
 
 
 def mir_builder(function: IRFunction):
     icmp_map = {}
     for block in function.blocks:
-        build_mir_block(block, icmp_map)
+        build_mir_block(block, icmp_map, function)
