@@ -56,7 +56,20 @@ def is_power_of_two(value: int) -> bool:
     return value != 0 and (value & (value - 1)) == 0
 
 
-def build_mir_block(block, icmp_map: dict[str, IRIcmp]):
+def division_by_invariant_integer(n: str, d: int) -> list[IRBinOp]:
+    """Generate LLVM IR code for division by a constant"""
+    # param n is the name of the dividend, a signed 32-bit integer
+    # param d is the divisor, a signed 32-bit integer
+    # return a list of IRBinOp commands
+    # note that this is a compiler intended for RV32IMA.
+    # TODO: implement this function
+    output_var = renamer.get_name("%.magic")
+    return [
+        IRBinOp(output_var, "sdiv", n, str(d), "i32"),
+    ]
+
+
+def build_mir_block(block: IRBlock, icmp_map: dict[str, IRIcmp], function: IRFunction):
     new_list: list[IRCmdBase] = []
     for cmd in block.cmds:
         if isinstance(cmd, IRBinOp):
