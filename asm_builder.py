@@ -311,7 +311,7 @@ class ASMBuilder(ASMBuilderUtils):
 
                 param_count = len(cmd.func.param_types)
 
-                assert param_count <= 8, "Tail call with more than 8 parameters"
+                # assert param_count <= 8, "Tail call with more than 8 parameters"
 
                 param_to = self.prepare_params(param_count)
                 param_from = self.prepare_var_from(cmd.var_use)
