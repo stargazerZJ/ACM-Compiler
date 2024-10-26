@@ -105,7 +105,8 @@ class ASMBuilder(ASMBuilderUtils):
         callee_reg_sorted = list(self.callee_reg)
         callee_reg_sorted.sort()
         func.stack_size += self.max_saved_reg * 4
-        save_register_cmds = self.save_registers(callee_reg_sorted, func.stack_size)
+        save_register_from = [OperandReg(reg) for reg in callee_reg_sorted]
+        save_register_to = [OperandStack(func.stack_size + i * 4) for i in range(len(callee_reg_sorted))]
         func.stack_size += len(callee_reg_sorted) * 4
 
         func.stack_size = (func.stack_size + 15) // 16 * 16
@@ -123,9 +124,10 @@ class ASMBuilder(ASMBuilderUtils):
         for from_ in param_from:
             if isinstance(from_, OperandStack):
                 from_.offset += func.stack_size
-        header_block.add_cmd(*self.rearrange_operands(param_from, param_to, ("t0", "t1")))
-
-        header_block.add_cmd(*save_register_cmds)
+        header_block.add_cmd(*self.rearrange_operands(
+            param_from + save_register_from,
+            param_to + save_register_to,
+            ("t0", "t1")))
 
         header_block.predecessors = []
         header_block.successors = [blocks[0]]
