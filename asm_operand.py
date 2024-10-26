@@ -104,7 +104,8 @@ def eliminate_tree_stack(tmp_reg1, tmp_reg2, graph, u: int) -> list[ASMMemOp]:
     ret = []
     for v in graph[u]:
         ret.extend(eliminate_tree_stack(tmp_reg1, tmp_reg2, graph, v))
-    ret.append(ASMMemOp("lw", tmp_reg1, u, "sp"))
+    if graph[u]:
+        ret.append(ASMMemOp("lw", tmp_reg1, u, "sp"))
     for v in graph[u]:
         # lw tmp_reg <- node v, sw tmp_reg -> node u
         ret.append(ASMMemOp("sw", tmp_reg1, v, "sp", tmp_reg=tmp_reg2))
