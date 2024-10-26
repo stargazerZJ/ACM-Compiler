@@ -211,7 +211,7 @@ class ASMBuilder(ASMBuilderUtils):
                 lhs, rhs = self.prepare_operands(block, cmd.lhs, cmd.rhs)
                 assert not isinstance(lhs, OperandImm)
                 assert not isinstance(rhs, OperandImm) or rhs.is_lower()
-                if isinstance(rhs, OperandImm) and rhs.imm == 0:
+                if isinstance(rhs, OperandReg) and rhs.reg == "zero":
                     assert cmd.op in ["slt", "sgt", "ne", "eq"]
                     op = {"slt": "sltz", "sgt": "sgtz", "ne": "snez", "eq": "seqz"}[cmd.op]
                     block.add_cmd(ASMCmd(op, dest, [lhs]))
@@ -254,7 +254,7 @@ class ASMBuilder(ASMBuilderUtils):
             elif isinstance(cmd, IRBranch):
                 if cmd.icmp is not None:
                     lhs, rhs = self.prepare_operands(block, cmd.icmp.lhs, cmd.icmp.rhs)
-                    if isinstance(rhs, OperandImm) and rhs.imm == 0:
+                    if isinstance(rhs, OperandReg) and rhs.reg == "zero":
                         op = {"eq": "beqz", "ne": "bnez", "slt": "bltz",
                               "sgt": "bgtz", "sle": "blez", "sge": "bgez"
                               }[cmd.icmp.op]
@@ -486,19 +486,19 @@ if __name__ == '__main__':
         print(f"Optimization failed: {e}", file=sys.stderr)
         exit(0)
 
-    try:
-        asm_builder = ASMBuilder(ir)
-        asm = asm_builder.build()
-        with open("clang_generated/builtin.s", 'r') as file:
-            builtin_asm = file.read()
+    # try:
+    asm_builder = ASMBuilder(ir)
+    asm = asm_builder.build()
+    with open("clang_generated/builtin.s", 'r') as file:
+        builtin_asm = file.read()
 
-        asm.set_builtin_functions(builtin_asm)
+    asm.set_builtin_functions(builtin_asm)
 
-        print("ASM building done", file=sys.stderr)
-        print(asm.riscv())
-        with open("output-asm.s", "w") as f:
-            print(asm.riscv(), file=f)
-            print("ASM output to " + "output-asm.s", file=sys.stderr)
-    except Exception as e:
-        print(f"ASM building failed: {e}", file=sys.stderr)
-        exit(0)
+    print("ASM building done", file=sys.stderr)
+    print(asm.riscv())
+    with open("output-asm.s", "w") as f:
+        print(asm.riscv(), file=f)
+        print("ASM output to " + "output-asm.s", file=sys.stderr)
+    # except Exception as e:
+    #     print(f"ASM building failed: {e}", file=sys.stderr)
+    #     exit(0)

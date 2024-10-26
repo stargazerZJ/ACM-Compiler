@@ -6,6 +6,7 @@ from asm_regalloc import AllocationRegister, AllocationStack, AllocationGlobal, 
 from asm_repr import ASMBlock, ASMMemOp, ASMCmdBase, ASMCmd, ASMMove, ASMFunction
 from ir_repr import IRBlock, IRCall
 from opt_mem2reg import IRUndefinedValue
+from opt_mir import is_zero
 
 
 class BlockNamer:
@@ -151,6 +152,8 @@ class ASMBuilderUtils:
                 block.add_cmd(ASMMemOp("lw", tmp_reg, alloc.label))
                 raise AssertionError("Unexpected operand type")
             return OperandReg(tmp_reg), True
+        elif is_zero(operand):
+            return OperandReg("zero"), False
         else:
             return OperandImm(self.parse_imm(operand)), False
 
