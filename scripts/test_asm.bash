@@ -125,15 +125,16 @@ fi
 EXPECTED_EXIT_CODE=$(grep "ExitCode:" $TESTCASE | awk '{print $2}')
 
 # 4. Execute the code with reimu
-reimu -i="$TEMPDIR/test.in" -o="$TEMPDIR/test.out" -f="$TEMPDIR/output.s" --all > "$TEMPDIR/ravel_output.txt"
+reimu -i="$TEMPDIR/test.in" -o="$TEMPDIR/test.out" -f="$TEMPDIR/output.s" --all --silent > "$TEMPDIR/ravel_output.txt"
 #reimu -i="$TEMPDIR/test.in" -o="$TEMPDIR/test.out" -f="$TEMPDIR/output.s,$BUILTIN" > "$TEMPDIR/ravel_output.txt"
 if [ $? -ne 0 ]; then
     cat << EOF >&2
 Error: Reimu exits with a non-zero value.
-You may run the following command again to see the error message:
-    ./reimu -i="$TEMPDIR/test.in" -o="$TEMPDIR/test.out" -f="$TEMPDIR/output.s,$BUILTIN" > "$TEMPDIR/ravel_output.txt"
 EOF
-    print_temp_dir
+#You may run the following command again to see the error message:
+#    ./reimu -i="$TEMPDIR/test.in" -o="$TEMPDIR/test.out" -f="$TEMPDIR/output.s,$BUILTIN" > "$TEMPDIR/ravel_output.txt"
+#EOF
+#    print_temp_dir
     exit 1
 fi
 
@@ -142,7 +143,7 @@ HAS_PROBLEM=0
 diff -ZB "$TEMPDIR/test.out" "$TEMPDIR/test.ans" >&2
 if [ $? -ne 0 ]; then
     echo "Error: Output mismatch." >&2
-    print_temp_dir
+#    print_temp_dir
     HAS_PROBLEM=1
 fi
 #EXIT_CODE=$(grep 'exit code' "$TEMPDIR/ravel_output.txt" | awk '{print $3}')
