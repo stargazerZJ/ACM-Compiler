@@ -486,19 +486,19 @@ if __name__ == '__main__':
         print(f"Optimization failed: {e}", file=sys.stderr)
         exit(0)
 
-    # try:
-    asm_builder = ASMBuilder(ir)
-    asm = asm_builder.build()
-    with open("clang_generated/builtin.s", 'r') as file:
-        builtin_asm = file.read()
+    try:
+        asm_builder = ASMBuilder(ir)
+        asm = asm_builder.build()
+        with open("clang_generated/builtin.s", 'r') as file:
+            builtin_asm = file.read()
 
-    asm.set_builtin_functions(builtin_asm)
+        asm.set_builtin_functions(builtin_asm)
 
-    print("ASM building done", file=sys.stderr)
-    print(asm.riscv())
-    with open("output-asm.s", "w") as f:
-        print(asm.riscv(), file=f)
-        print("ASM output to " + "output-asm.s", file=sys.stderr)
-    # except Exception as e:
-    #     print(f"ASM building failed: {e}", file=sys.stderr)
-    #     exit(0)
+        print("ASM building done", file=sys.stderr)
+        print(asm.riscv())
+        with open("output-asm.s", "w") as f:
+            print(asm.riscv(), file=f)
+            print("ASM output to " + "output-asm.s", file=sys.stderr)
+    except Exception as e:
+        print(f"ASM building failed: {e}", file=sys.stderr)
+        exit(0)
