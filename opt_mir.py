@@ -44,13 +44,16 @@ def commutative_law(cmd, new_list):
         # cannot be represented as 12-bit imm
         li_rhs(cmd, new_list)
 
+
 def parse_imm(value: str):
     if value in ["true", "false", "null"]:
         value = 0 if value != "true" else 1
     return int(value)
 
+
 def imm_overflow(value: str) -> bool:
     return parse_imm(value) > 2047 or parse_imm(value) < -2048
+
 
 def is_power_of_two(value: int) -> bool:
     return value != 0 and (value & (value - 1)) == 0
@@ -63,10 +66,25 @@ def division_by_invariant_integer(n: str, d: int) -> list[IRBinOp]:
     # return a list of IRBinOp commands
     # note that this is a compiler intended for RV32IMA.
     # TODO: implement this function
+    cmds = []
+    if is_power_of_two(d):
+        srai_var = renamer.get_name("%.srai")
+        cmds.append(IRBinOp(srai_var, "ashr", n, "31", "i32"))
+        and_var = renamer.get_name("%.and")
+        and_cmd = IRBinOp(and_var, "and", srai_var, str(d - 1), "i32")
+        if d > 2048:
+            li_rhs(and_cmd, cmds)
+        cmds.append(and_cmd)
+        add_var = renamer.get_name("%.add")
+        cmds.append(IRBinOp(add_var, "add", n, and_var, "i32"))
+        output_var = renamer.get_name("%.magic")
+        cmds.append(IRBinOp(output_var, "ashr", add_var, str(d.bit_length() - 1), "i32"))
+        return cmds
     output_var = renamer.get_name("%.magic")
-    return [
-        IRBinOp(output_var, "sdiv", n, str(d), "i32"),
-    ]
+    cmd = IRBinOp(output_var, "sdiv", n, str(d), "i32")
+    li_rhs(cmd, cmds)
+    cmds.append(cmd)
+    return cmds
 
 
 def build_mir_block(block: IRBlock, icmp_map: dict[str, IRIcmp], function: IRFunction):
@@ -94,6 +112,11 @@ def build_mir_block(block: IRBlock, icmp_map: dict[str, IRIcmp], function: IRFun
                     imm = parse_imm(cmd.rhs)
                     if cmd.op == "mul" and is_power_of_two(imm):
                         new_list.append(IRBinOp(cmd.dest, "shl", cmd.lhs, str(imm.bit_length() - 1), cmd.typ))
+                        continue
+                    elif cmd.op == "sdiv":
+                        cmds = division_by_invariant_integer(cmd.lhs, imm)
+                        cmds[-1].var_def[0] = cmd.dest
+                        new_list.extend(cmds)
                         continue
                     else:
                         li_rhs(cmd, new_list)
@@ -189,7 +212,8 @@ def build_mir_block(block: IRBlock, icmp_map: dict[str, IRIcmp], function: IRFun
                 icmp_cmd = IRIcmp(icmp_name, icmp_cmd.op, icmp_cmd.typ, icmp_cmd.lhs, icmp_cmd.rhs)
                 if is_zero(icmp_cmd.lhs):
                     swap_operands(icmp_cmd)
-                    icmp_cmd.op = {"eq": "eq", "ne": "ne", "slt": "sgt", "sgt": "slt", "sle": "sge", "sge": "sle"}[icmp_cmd.op]
+                    icmp_cmd.op = {"eq": "eq", "ne": "ne", "slt": "sgt", "sgt": "slt", "sle": "sge", "sge": "sle"}[
+                        icmp_cmd.op]
                 if is_imm(icmp_cmd.lhs):
                     li_lhs(icmp_cmd, new_list)
                 if is_imm(icmp_cmd.rhs) and not is_zero(icmp_cmd.rhs):
@@ -203,12 +227,17 @@ def build_mir_block(block: IRBlock, icmp_map: dict[str, IRIcmp], function: IRFun
             #     cmd.var_use[1] = li_name
             last_cmd = new_list[-1] if new_list else None
             if isinstance(last_cmd, IRCall) and last_cmd.var_def == cmd.var_use[1:]:
-                last_cmd.set_tail_call()
                 if last_cmd.func.ir_name == function.info.ir_name:
                     # convert self-recursive tail call into loop
+                    last_cmd.set_tail_call()
                     last_cmd.self_tail_call = True
                     block.successors = [unreachable_block]
                     BlockChain.link_exits_to_block([BBExit(block, 0)], function.blocks[0])
+                # elif len(last_cmd.func.param_types) <= 8:
+                #     last_cmd.set_tail_call()
+                else:
+                    last_cmd.set_tail_call()
+                    # new_list.append(cmd)
             else:
                 new_list.append(cmd)
         else:
