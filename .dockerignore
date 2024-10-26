@@ -1,0 +1,15 @@
+testcases/
+testcases-old/
+antlr_generated/
+clang_generated/
+antlr/*.tokens
+tmp/
+dominator/*build*
+output.ll
+output-mir.ll
+output-asm.s
+
+.idea/
+
+Dockerfile
+

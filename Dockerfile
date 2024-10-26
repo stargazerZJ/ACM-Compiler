@@ -2,7 +2,7 @@
 FROM python:3.12-alpine
 
 # Install the necessary packages
-RUN apk add --no-cache zsh clang18 make py3-pybind11-dev
+RUN apk add --no-cache zsh clang18 make py3-pybind11-dev openjdk11 cmake
 
 # Set the working directory in the container
 WORKDIR /app
@@ -18,6 +18,9 @@ COPY . .
 
 # Execute the make build command
 RUN make build
+
+# Uninstall the build dependencies
+RUN apk del clang18 openjdk11 cmake
 
 # Execute the make run command
 CMD ["make", "run"]
