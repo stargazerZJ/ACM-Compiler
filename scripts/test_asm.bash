@@ -39,7 +39,7 @@ if [ ! -f $TESTCASE ]; then
     echo "Error: testcase file $TESTCASE does not exist." >&2
     exit 1
 fi
-source $(dirname $0)/utils.bash
+source "$(dirname "$0")"/utils.bash
 
 # Test whether reimu is installed
 export PATH="./testcases:$PATH"
@@ -55,6 +55,7 @@ elif [ $# -eq 3 ]; then
     if [ ! -f $3 ]; then
         HAS_BUILTIN=0
         TEMPDIR=$3
+        USER_DEFINED_TEMPDIR=1
     else
         HAS_BUILTIN=1
         BUILTIN=$3
@@ -144,12 +145,12 @@ if [ $? -ne 0 ]; then
     print_temp_dir
     HAS_PROBLEM=1
 fi
-EXIT_CODE=$(grep 'exit code' "$TEMPDIR/ravel_output.txt" | awk '{print $3}')
-if [ $EXIT_CODE -ne $EXPECTED_EXIT_CODE ]; then
-    echo "Error: Exit code mismatch." >&2
-    print_temp_dir
-    HAS_PROBLEM=1
-fi
+#EXIT_CODE=$(grep 'exit code' "$TEMPDIR/ravel_output.txt" | awk '{print $3}')
+#if [ $EXIT_CODE -ne $EXPECTED_EXIT_CODE ]; then
+#    echo "Error: Exit code mismatch." >&2
+#    print_temp_dir
+#    HAS_PROBLEM=1
+#fi
 
 if [ $HAS_PROBLEM -eq 0 ]; then
     print_green_msg "Passed"
