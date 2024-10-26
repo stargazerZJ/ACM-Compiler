@@ -68,6 +68,13 @@ class IRLoad(IRCmdBase):
     @property
     def src(self): return self.var_use[0]
 
+    @property
+    def addr(self): return self.var_use[0]
+
+    @addr.setter
+    def addr(self, value):
+        self.var_use[0] = value
+
     def llvm(self):
         return f"{self.dest} = load {self.typ}, ptr {self.src}"
 
@@ -83,6 +90,13 @@ class IRStore(IRCmdBase):
 
     @property
     def src(self): return self.var_use[1]
+
+    @property
+    def addr(self): return self.var_use[0]
+
+    @addr.setter
+    def addr(self, value):
+        self.var_use[0] = value
 
     def llvm(self):
         return f"store {self.typ} {self.src}, ptr {self.dest}"
@@ -188,7 +202,8 @@ class IRBranch(IRCmdBase):
         self.icmp: IRIcmp | None = None
 
     @property
-    def cond(self): return self.var_use[0]
+    def cond(self):
+        return self.var_use[0]
 
     def llvm(self):
         if self.icmp is not None:

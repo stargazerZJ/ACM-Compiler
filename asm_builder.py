@@ -8,6 +8,7 @@ from asm_operand import OperandReg, OperandImm, OperandStack
 from ir_repr import IRGlobal, IRModule, IRFunction, IRStr, IRBlock, IRPhi, IRBinOp, IRIcmp, IRLoad, IRStore, \
     IRJump, IRBranch, IRRet, IRCall
 from opt_dce import naive_dce
+from opt_globalvar import inline_global_variables
 from opt_utils import rearrange_in_rpo
 
 
@@ -457,8 +458,13 @@ if __name__ == '__main__':
         exit(0)
 
     try:
-        ir.for_each_function_definition(mem2reg)
+        ir.for_each_function_definition(naive_dce)
+        print("DCE done", file=sys.stderr)
 
+        ir.for_each_function_definition(inline_global_variables)
+        print("Global variable inlining done", file=sys.stderr)
+
+        ir.for_each_function_definition(mem2reg)
         print("M2R done", file=sys.stderr)
 
         ir.for_each_function_definition(naive_dce)
