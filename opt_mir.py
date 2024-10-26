@@ -244,7 +244,7 @@ def build_mir_block(block: IRBlock, icmp_map: dict[str, IRIcmp], function: IRFun
             else:
                 new_list.append(IRBinOp(cmd.dest, "add", cmd.ptr, "0", "ptr"))
         elif isinstance(cmd, IRStore):
-            if is_imm(cmd.src):
+            if is_imm(cmd.src) and not is_zero(cmd.src):
                 li_name = add_li(new_list, cmd.src, cmd.typ)
                 cmd.var_use[1] = li_name
             new_list.append(cmd)
