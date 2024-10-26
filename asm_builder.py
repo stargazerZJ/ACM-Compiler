@@ -198,9 +198,9 @@ class ASMBuilder(ASMBuilderUtils):
                         if isinstance(rhs, OperandImm):
                             op += "i"
                         block.add_cmd(ASMCmd(op, dest, [lhs, rhs]))
-                    elif cmd.op in ["mul", "sdiv", "srem"]:
+                    elif cmd.op in ["mul", "sdiv", "srem", "smulh"]:
                         # there are no udiv and urem in the input IR
-                        op = {"mul": "mul", "sdiv": "div", "srem": "rem"}[cmd.op]
+                        op = {"mul": "mul", "sdiv": "div", "srem": "rem", "smulh": "mulh"}[cmd.op]
                         block.add_cmd(ASMCmd(op, dest, [lhs, rhs]))
                     else:
                         raise AssertionError(f"Unknown binary command: {cmd.llvm()}")

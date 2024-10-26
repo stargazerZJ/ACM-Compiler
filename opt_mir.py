@@ -80,11 +80,58 @@ def division_by_invariant_integer(n: str, d: int) -> list[IRBinOp]:
         output_var = renamer.get_name("%.magic")
         cmds.append(IRBinOp(output_var, "ashr", add_var, str(d.bit_length() - 1), "i32"))
         return cmds
-    output_var = renamer.get_name("%.magic")
-    cmd = IRBinOp(output_var, "sdiv", n, str(d), "i32")
-    li_rhs(cmd, cmds)
-    cmds.append(cmd)
-    return cmds
+
+    # Handle special cases
+    if d == 0:
+        # raise ValueError("Division by zero")
+        return [IRBinOp(n, "add", n, "0", "i32")]  # nop
+    if d == 1:
+        return [IRBinOp(n, "add", n, "0", "i32")]  # nop
+    if d == -1:
+        neg_var = renamer.get_name("%.neg")
+        return [IRBinOp(neg_var, "sub", "0", n, "i32")]
+
+    # Convert negative divisors to positive
+    abs_d = abs(d)
+
+    # Calculate magic numbers
+    l = (abs_d - 1).bit_length()
+    M = 1 + ((1 << (31 + l)) // abs_d) - (1 << 32)
+    s = l - 1
+
+    # Generate the IR operations
+    ops = []
+
+    # Step 1: Multiply by magic number
+    mulh_var = renamer.get_name("%.mulh")
+    cmd = IRBinOp(mulh_var, "smulh", n, str(M), "i32")
+    li_rhs(cmd, ops)
+    ops.append(cmd)
+
+    if M < 0:
+        add_var = renamer.get_name("%.add")
+        ops.append(IRBinOp(add_var, "add", mulh_var, n, "i32"))
+        mulh_var = add_var
+
+    # Step 3: Arithmetic right shift
+    if s > 0:
+        shift_var = renamer.get_name("%.shift")
+        ops.append(IRBinOp(shift_var, "ashr", mulh_var, str(s), "i32"))
+        mulh_var = shift_var
+
+    # Step 4: Add 1 for negative numbers (floor division)
+    sign_var = renamer.get_name("%.sign")
+    ops.append(IRBinOp(sign_var, "ashr", n, "31", "i32"))
+
+    result_var = renamer.get_name("%.div")
+    ops.append(IRBinOp(result_var, "sub", mulh_var, sign_var, "i32"))
+
+    # Handle negative divisor by negating result
+    if d < 0:
+        neg_var = renamer.get_name("%.neg")
+        ops.append(IRBinOp(neg_var, "sub", "0", result_var, "i32"))
+
+    return ops
 
 
 def build_mir_block(block: IRBlock, icmp_map: dict[str, IRIcmp], function: IRFunction):
@@ -108,7 +155,6 @@ def build_mir_block(block: IRBlock, icmp_map: dict[str, IRIcmp], function: IRFun
                 if is_imm(cmd.lhs):
                     li_lhs(cmd, new_list)
                 if is_imm(cmd.rhs):
-                    # opt: x / const optimization (future)
                     imm = parse_imm(cmd.rhs)
                     if cmd.op == "mul" and is_power_of_two(imm):
                         new_list.append(IRBinOp(cmd.dest, "shl", cmd.lhs, str(imm.bit_length() - 1), cmd.typ))
