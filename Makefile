@@ -3,9 +3,9 @@
 .PHONY: build run
 
 build:
-	zsh scripts/antlr-build.zsh
-	zsh scripts/clang-build.zsh
-	zsh scripts/pybind11-build.zsh
+	scripts/antlr-build.bash
+	scripts/clang-build.bash
+	scripts/pybind11-build.bash
 
 run:
-	python3 asm_builder.py --stdin
+	./main.py --stdin

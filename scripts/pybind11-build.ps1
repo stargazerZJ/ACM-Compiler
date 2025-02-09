@@ -5,7 +5,7 @@
 $scriptDir = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
 # Set the path to the dominator directory
-$dominatorDir = Join-Path $scriptDir "..\dominator"
+$dominatorDir = Join-Path $scriptDir "..\mxc\common\dominator"
 
 # Change directory to dominator subdirectory
 Set-Location $dominatorDir
