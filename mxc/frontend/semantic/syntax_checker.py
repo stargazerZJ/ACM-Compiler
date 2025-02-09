@@ -488,37 +488,3 @@ class SyntaxChecker(MxParserVisitor):
                     raise MxSyntaxError(
                         f"Return type mismatch: expected {self.scope.get_return_type().name}, got {ret_type.name}", ctx)
 
-
-if __name__ == '__main__':
-    from mxc.frontend.parser.MxLexer import MxLexer
-    import sys
-
-    # test_file_path = "./testcases/sema/basic-package/basic-1.mx"
-    # test_file_path = "./testcases/sema/class-package/class-5.mx"
-    # test_file_path = "./testcases/sema/array-package/array-10.mx"
-    # test_file_path = "./testcases/sema/misc-package/misc-1.mx"
-    # test_file_path = "./testcases/sema/const-array-package/const_array1.mx"
-    # test_file_path = "./testcases/sema/scope-package/scope-1.mx"
-    test_file_path = "../../../testcases/codegen/t76.mx"
-    input_stream = antlr4.FileStream(test_file_path, encoding='utf-8')
-    # input_stream = antlr4.StdinStream(encoding='utf-8')
-    lexer = MxLexer(input_stream)
-    parser = MxParser(antlr4.CommonTokenStream(lexer))
-
-    # Attach error listeners
-    error_listener = ThrowingErrorListener()
-    lexer.removeErrorListeners()
-    lexer.addErrorListener(error_listener)
-    parser.removeErrorListeners()
-    parser.addErrorListener(error_listener)
-
-    try:
-        tree = parser.file_Input()
-        checker = SyntaxChecker()
-        checker.visit(tree)
-        print("Syntax check passed", file=sys.stderr)
-    except MxSyntaxError as e:
-        print(f"Syntax check failed: {e}", file=sys.stderr)
-        print(f"Standardized error message: {e.standardize()}", file=sys.stderr)
-        print(e.standardize())
-        exit(1)

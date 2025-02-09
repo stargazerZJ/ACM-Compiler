@@ -8,4 +8,4 @@ build:
 	scripts/pybind11-build.bash
 
 run:
-	./main.py --stdin
+	./main.py --judge-mode

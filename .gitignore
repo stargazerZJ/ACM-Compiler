@@ -1,6 +1,7 @@
 testcases/
 tmp/
 mxc/common/dominator/*build*
+dumps/
 
 .idea/
 
