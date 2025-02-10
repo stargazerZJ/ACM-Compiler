@@ -350,7 +350,7 @@ class ASMBuilder(ASMBuilderUtils):
                 param_from = self.prepare_var_from(cmd.var_use[1:])  # exclude ret_addr
                 param_to = self.prepare_var_to([param + ".param" for param in cmd.func.param_ir_names])
                 block.add_cmd(*self.rearrange_operands(param_from, param_to, ("t0", "t1")))
-                # block.set_flow_control(ASMFlowControl.jump(block, "tail"))
+                # block.set_flow_control(ASMFlowControl.jump(block, "tail")) # flow modified in MIR pass
             # There is no alloca nor gep in the input IR
             else:
                 raise NotImplementedError(f"Unsupported command: {cmd}")

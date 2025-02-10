@@ -65,7 +65,6 @@ def division_by_invariant_integer(n: str, d: int) -> list[IRBinOp]:
     # param d is the divisor, a signed 32-bit integer
     # return a list of IRBinOp commands
     # note that this is a compiler intended for RV32IMA.
-    # TODO: implement this function
     cmds = []
     if is_power_of_two(d):
         srai_var = renamer.get_name("%.srai")
