@@ -1,28 +1,5 @@
 from mxc.common.ir_repr import IRBlock, IRFunction, IRPhi
-from .utils import mark_blocks
-
-
-def collect_defs(function: IRFunction) -> set[str]:
-    blocks = function.blocks
-    defs = {var
-            for block in blocks
-            for cmd in block
-            for var in cmd.var_def}
-    defs.add("ret_addr")
-    defs.update({
-        param + ".param" for param in function.info.param_ir_names
-    })
-    return defs
-
-
-def collect_uses(defs: set[str], blocks: list[IRBlock]) -> dict[str, list[tuple[IRBlock, int]]]:
-    use_sites = {def_: [] for def_ in defs}
-    for block in blocks:
-        for cmd_ind, cmd in enumerate(block.cmds):
-            for use in cmd.var_use:
-                if use in defs:
-                    use_sites[use].append((block, cmd_ind))
-    return use_sites
+from .utils import mark_blocks, collect_defs, collect_uses
 
 
 def init_live_out(blocks: list[IRBlock]):
@@ -36,6 +13,10 @@ def liveness_analysis(function: IRFunction):
 
     mark_blocks(blocks)
     defs = collect_defs(function)
+    defs.add("ret_addr")
+    defs.update({
+        param + ".param" for param in function.info.param_ir_names
+    })
     use_sites = collect_uses(defs, blocks)
     init_live_out(blocks)
     function.var_defs = defs

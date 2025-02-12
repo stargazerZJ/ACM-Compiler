@@ -19,6 +19,7 @@ from mxc.middle_end.mir import mir_builder
 from mxc.middle_end.liveness_analysis import liveness_analysis
 from mxc.middle_end.dce import naive_dce
 from mxc.middle_end.globalvar import inline_global_variables
+from mxc.middle_end.sccp import sparse_conditional_constant_propagation
 from mxc.middle_end.utils import rearrange_in_rpo
 
 @dataclass
@@ -74,6 +75,10 @@ OPTIMIZATION_PRESETS = {
     "ir_only": [],
     "mem2reg": [
         OptimizationPass(mem2reg, "Memory-to-Register Promotion"),
+    ],
+    "sccp": [
+        OptimizationPass(mem2reg, "Memory-to-Register Promotion"),
+        OptimizationPass(sparse_conditional_constant_propagation, "Sparse Conditional Constant Propagation"),
     ]
 }
 
