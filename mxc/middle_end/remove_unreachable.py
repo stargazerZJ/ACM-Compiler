@@ -1,6 +1,6 @@
 from collections import defaultdict
 
-from mxc.common.ir_repr import IRFunction, IRRet, UnreachableBlock, IRPhi, IRBranch, IRJump, BBExit
+from mxc.common.ir_repr import IRFunction, IRRet, UnreachableBlock, IRPhi, IRBranch, IRJump, BBExit, IRBinOp
 from mxc.common.ir_repr import IRBlock
 
 
@@ -77,14 +77,19 @@ def remove_unreachable(function: IRFunction):
                     # This block should have been pruned; handle as needed
                     pass
 
-    # Remove phi instructions with only one source
+    function.blocks = new_blocks
+    function.edge_to_remove.clear()
+
+    copy_propagation(function)
+
+def copy_propagation(function: IRFunction):
     rename_map : dict[str, str] = {}
-    for block in new_blocks:
+    for block in function.blocks:
         for cmd in block.cmds:
             cmd.var_use = [rename_map.get(var, var) for var in cmd.var_use]
             if isinstance(cmd, IRPhi):
                 if len(cmd.sources) == 1:
                     rename_map[cmd.dest] = cmd.var_use[0]
-
-    function.blocks = new_blocks
-    function.edge_to_remove.clear()
+            elif isinstance(cmd, IRBinOp):
+                if cmd.op == "add" and cmd.rhs == "0":
+                    rename_map[cmd.dest] = cmd.lhs
