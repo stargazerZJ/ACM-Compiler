@@ -1,7 +1,7 @@
 from typing import cast
 
 from mxc.common.ir_repr import IRFunction, IRBlock, IRPhi, IRCmdBase, IRLoad, IRCall, IRStore, IRJump, IRIcmp, IRBinOp, \
-    IRBranch
+    IRBranch, IRGetElementPtr
 from mxc.middle_end.mem2reg import IRUndefinedValue
 from mxc.middle_end.mir import parse_imm
 from mxc.middle_end.utils import mark_blocks, collect_defs, collect_uses, collect_type_map
@@ -71,7 +71,8 @@ class SparseConditionalConstantPropagation:
 
         for block in self.blocks:
             for cmd in block.cmds:
-                self.update_value(cmd)
+                if self.update_value(cmd):
+                    block.unreachable_mark = True
 
         # TODO: remove unreachable blocks
 
@@ -82,7 +83,8 @@ class SparseConditionalConstantPropagation:
                 if literal is None:
                     continue
                 if isinstance(literal, Unknown):
-                    # TODO: mark as undefined behavior
+                    if not isinstance(cmd, IRPhi):
+                        return True # Unreachable
                     continue
                 cmd.var_use[i] = to_imm(literal, self.type_map[var_use])
 
@@ -139,7 +141,7 @@ class SparseConditionalConstantPropagation:
         cmd = block.cmds[cmd_id]
         # print(f"Visiting command {cmd}")
 
-        if isinstance(cmd, IRLoad) or isinstance(cmd, IRCall):
+        if isinstance(cmd, IRLoad) or isinstance(cmd, IRCall) or isinstance(cmd, IRGetElementPtr):
             # The result of these commands is considered not a constant
             self.try_update(cmd.dest, None)
         elif isinstance(cmd, IRIcmp):

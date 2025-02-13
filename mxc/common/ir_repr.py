@@ -169,6 +169,7 @@ class IRBlock:
 class UnreachableBlock(IRBlock):
     def __init__(self):
         super().__init__("unreachable")
+        self.unreachable_mark = True
 
     def add_cmd(self, cmd: IRCmdBase):
         pass
