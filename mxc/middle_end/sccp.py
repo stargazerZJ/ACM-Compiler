@@ -110,7 +110,7 @@ class SparseConditionalConstantPropagation:
         if isinstance(var, IRUndefinedValue):
             return Unknown()
         if not var.startswith("%"):
-            if var.startswith('.str'):
+            if var.startswith('@.str'):
                 return None
             return parse_imm(var)
         return self.lattice_cell.get(var)
