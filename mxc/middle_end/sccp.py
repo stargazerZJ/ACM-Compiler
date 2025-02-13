@@ -143,7 +143,8 @@ class SparseConditionalConstantPropagation:
 
         if isinstance(cmd, IRLoad) or isinstance(cmd, IRCall) or isinstance(cmd, IRGetElementPtr):
             # The result of these commands is considered not a constant
-            self.try_update(cmd.dest, None)
+            if cmd.dest:
+                self.try_update(cmd.dest, None)
         elif isinstance(cmd, IRIcmp):
             lhs_value, rhs_value = self.get_value(cmd.lhs), self.get_value(cmd.rhs)
             if isinstance(lhs_value, Unknown) or isinstance(rhs_value, Unknown):
@@ -168,7 +169,7 @@ class SparseConditionalConstantPropagation:
             elif cmd.op == 'sge':
                 return self.try_update(cmd.dest, int(lhs_value >= rhs_value))
             else:
-                assert False
+                assert False, "Unknown icmp operator"
         elif isinstance(cmd, IRBinOp):
             lhs_value, rhs_value = self.get_value(cmd.lhs), self.get_value(cmd.rhs)
             if isinstance(lhs_value, Unknown) or isinstance(rhs_value, Unknown):
@@ -210,7 +211,7 @@ class SparseConditionalConstantPropagation:
                 result = lhs_value >> shift
                 return self.try_update(cmd.dest, to_int32(result))
             else:
-                assert False
+                assert False, "Unknown binop operator"
         elif isinstance(cmd, IRJump):
             self.cfg_work_list.append((block_id, cmd.dest.get_dest().index))
             return
