@@ -214,13 +214,10 @@ class SparseConditionalConstantPropagation:
                     remainder -= rhs_value
                 return self.try_update(cmd.dest, to_int32(remainder))
             elif cmd.op == 'and':
-                result = lhs_value & rhs_value
                 return self.try_update(cmd.dest, to_int32(lhs_value & rhs_value))
             elif cmd.op == 'or':
-                result = lhs_value | rhs_value
                 return self.try_update(cmd.dest, to_int32(lhs_value | rhs_value))
             elif cmd.op == 'xor':
-                result = lhs_value ^ rhs_value
                 return self.try_update(cmd.dest, to_int32(lhs_value ^ rhs_value))
             elif cmd.op == 'shl':
                 shift = rhs_value & 0x1F
