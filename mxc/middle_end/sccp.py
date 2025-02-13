@@ -3,7 +3,7 @@ from typing import cast
 from mxc.common.ir_repr import IRFunction, IRBlock, IRPhi, IRCmdBase, IRLoad, IRCall, IRStore, IRJump, IRIcmp, IRBinOp, \
     IRBranch, IRGetElementPtr
 from mxc.middle_end.mem2reg import IRUndefinedValue
-from mxc.middle_end.mir import parse_imm
+from mxc.middle_end.mir import parse_imm, is_imm
 from mxc.middle_end.utils import mark_blocks, collect_defs, collect_uses, collect_type_map
 
 
@@ -72,13 +72,13 @@ class SparseConditionalConstantPropagation:
                 self.visit_cmd(block, cmd_id)
 
         for block in self.blocks:
+            if block.unreachable_mark or block.index not in self.block_visited:
+                block.unreachable_mark = True
             for cmd in block.cmds:
-                if self.update_value(cmd):
+                if self.update_value(cmd, block):
                     block.unreachable_mark = True
 
-        # TODO: remove unreachable blocks
-
-    def update_value(self, cmd: IRCmdBase):
+    def update_value(self, cmd: IRCmdBase, block: IRBlock) -> bool:
         for i, var_use in enumerate(cmd.var_use):
             if var_use in self.lattice_cell:
                 literal = self.lattice_cell[var_use]
@@ -87,8 +87,14 @@ class SparseConditionalConstantPropagation:
                 if isinstance(literal, Unknown):
                     if not isinstance(cmd, IRPhi):
                         return True # Unreachable
+                    else:
+                        self.function.edge_to_remove.add((block, cmd.sources[i]))
                     continue
                 cmd.var_use[i] = to_imm(literal, self.type_map[var_use])
+        if isinstance(cmd, IRBranch):
+            if cmd.cond in ['true', 'false']:
+                unreachable_dest = cmd.true_dest.get_dest() if cmd.cond == 'false' else cmd.false_dest.get_dest()
+                self.function.edge_to_remove.add((block, unreachable_dest))
 
     def visit_block(self, from_: int, to: int):
         cmds = self.blocks[to].cmds

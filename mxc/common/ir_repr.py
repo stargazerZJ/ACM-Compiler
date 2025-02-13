@@ -145,6 +145,7 @@ class IRBlock:
         self.predecessors = []
         self.successors = []
         self.live_in = set()
+        self.unreachable_mark = False
 
     def llvm(self):
         ret = f"{self.name}:"
@@ -164,6 +165,9 @@ class IRBlock:
 
     def __repr__(self):
         return f'IRBlock("{self.name}")'
+
+    def is_unreachable(self):
+        return self.unreachable_mark
 
 
 class UnreachableBlock(IRBlock):
@@ -370,12 +374,14 @@ class IRFunction:
     var_defs: set[str]
     is_leaf: bool
     no_effect: bool
+    edge_to_remove: set[tuple[IRBlock, IRBlock]] # [from, to]
 
     def __init__(self, info: FunctionInfo, chain: BlockChain = None):
         self.info = info
         self.blocks = chain.collect_blocks() if chain is not None else None
         self.is_leaf = False
         self.no_effect = info.no_effect
+        self.edge_to_remove = set()
 
     def llvm(self):
         if self.is_declare():
