@@ -1,5 +1,6 @@
 from mxc.common.ir_repr import IRBranch, IRRet, IRStore, IRCall, IRCmdBase, IRJump, IRFunction
 from .utils import collect_commands, collect_var_use
+from queue import Queue
 
 
 def build_node(cmds: list[IRCmdBase]):
@@ -34,14 +35,15 @@ def build_graph(cmds: list[IRCmdBase]) -> dict[str, set[str]]:
 
 
 def bfs(graph: dict[str, set[str]], start: str):
-    queue = [start]
+    queue = Queue()
+    queue.put(start)
     visited = {start}
     while queue:
-        node = queue.pop(0)
+        node = queue.get()
         for next_node in graph[node]:
             if next_node not in visited and next_node in graph:
                 visited.add(next_node)
-                queue.append(next_node)
+                queue.put(next_node)
     return visited
 
 
