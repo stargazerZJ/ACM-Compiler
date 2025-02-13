@@ -171,8 +171,10 @@ class SparseConditionalConstantPropagation:
             lhs_value, rhs_value = self.get_value(cmd.lhs), self.get_value(cmd.rhs)
             if isinstance(lhs_value, Unknown) or isinstance(rhs_value, Unknown):
                 return
-            # TODO: handle special cases such as `x - x = 0`
             if lhs_value is None or rhs_value is None:
+                if cmd.lhs == cmd.rhs:
+                    if cmd.op in ['sub', 'xor', 'ashr']:
+                        return self.try_update(cmd.dest, 0)
                 return self.try_update(cmd.dest, None)
             if cmd.op == 'add':
                 return self.try_update(cmd.dest, to_int32(lhs_value + rhs_value))
@@ -188,6 +190,23 @@ class SparseConditionalConstantPropagation:
                 if rhs_value == 0:
                     return
                 return self.try_update(cmd.dest, to_int32(lhs_value % rhs_value))
+            elif cmd.op == 'and':
+                result = lhs_value & rhs_value
+                return self.try_update(cmd.dest, to_int32(lhs_value & rhs_value))
+            elif cmd.op == 'or':
+                result = lhs_value | rhs_value
+                return self.try_update(cmd.dest, to_int32(lhs_value | rhs_value))
+            elif cmd.op == 'xor':
+                result = lhs_value ^ rhs_value
+                return self.try_update(cmd.dest, to_int32(lhs_value ^ rhs_value))
+            elif cmd.op == 'shl':
+                shift = rhs_value & 0x1F
+                result = lhs_value << shift
+                return self.try_update(cmd.dest, to_int32(result))
+            elif cmd.op == 'ashr':
+                shift = rhs_value & 0x1F
+                result = lhs_value >> shift
+                return self.try_update(cmd.dest, to_int32(result))
             else:
                 assert False
         elif isinstance(cmd, IRJump):
