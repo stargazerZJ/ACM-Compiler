@@ -1,5 +1,5 @@
 from mxc.common import dominator
-from mxc.common.ir_repr import IRBlock, IRCmdBase, IRFunction
+from mxc.common.ir_repr import IRBlock, IRCmdBase, IRFunction, IRIcmp
 
 
 def mark_blocks(blocks: list[IRBlock]):
@@ -61,7 +61,7 @@ def collect_uses(defs: set[str], blocks: list[IRBlock]) -> dict[str, list[tuple[
 
 def collect_type_map(function: IRFunction) -> dict[str, str]:
     blocks = function.blocks
-    type_map = {var: cmd.typ
+    type_map = {var: ("i1" if isinstance(cmd, IRIcmp) else cmd.typ)
                 for block in blocks
                 for cmd in block
                 for var in cmd.var_def}
