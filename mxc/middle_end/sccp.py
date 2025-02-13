@@ -67,6 +67,8 @@ class SparseConditionalConstantPropagation:
                 self.visit_block(from_, to)
             while self.ssa_work_list:
                 block, cmd_id = self.ssa_work_list.pop()
+                if block.index not in self.block_visited:
+                    continue
                 self.visit_cmd(block, cmd_id)
 
         for block in self.blocks:
@@ -185,14 +187,20 @@ class SparseConditionalConstantPropagation:
                 return self.try_update(cmd.dest, to_int32(lhs_value - rhs_value))
             elif cmd.op == 'mul':
                 return self.try_update(cmd.dest, to_int32(lhs_value * rhs_value))
-            elif cmd.op == 'div':
+            elif cmd.op == 'sdiv':
+                if rhs_value == 0:
+                    return  # remain `Unknown` for undefined behavior
+                quotient = lhs_value // rhs_value
+                if (lhs_value * rhs_value < 0) and (lhs_value % rhs_value != 0):
+                    quotient += 1
+                return self.try_update(cmd.dest, to_int32(quotient))
+            elif cmd.op == 'srem':
                 if rhs_value == 0:
                     return
-                return self.try_update(cmd.dest, to_int32(lhs_value // rhs_value))
-            elif cmd.op == 'rem':
-                if rhs_value == 0:
-                    return
-                return self.try_update(cmd.dest, to_int32(lhs_value % rhs_value))
+                remainder = lhs_value % rhs_value
+                if (lhs_value * rhs_value < 0) and remainder != 0:
+                    remainder -= rhs_value
+                return self.try_update(cmd.dest, to_int32(remainder))
             elif cmd.op == 'and':
                 result = lhs_value & rhs_value
                 return self.try_update(cmd.dest, to_int32(lhs_value & rhs_value))
