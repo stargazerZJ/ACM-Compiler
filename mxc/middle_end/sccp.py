@@ -91,12 +91,12 @@ class SparseConditionalConstantPropagation:
                         self.function.edge_to_remove.add((cmd.sources[i], block))
                         continue
                 cmd.var_use[i] = to_imm(literal, self.type_map[var_use])
-            elif isinstance(var_use, IRUndefinedValue):
-                if not isinstance(cmd, IRPhi):
-                    return True  # Unreachable
-                else:
-                    self.function.edge_to_remove.add((cmd.sources[i], block))
-                    continue
+            # elif isinstance(var_use, IRUndefinedValue):
+            #     if not isinstance(cmd, IRPhi):
+            #         return True  # Unreachable
+            #     else:
+            #         self.function.edge_to_remove.add((cmd.sources[i], block))
+            #         continue
         if isinstance(cmd, IRBranch):
             if cmd.cond in ['true', 'false']:
                 unreachable_dest = cmd.true_dest.get_dest() if cmd.cond == 'false' else cmd.false_dest.get_dest()
