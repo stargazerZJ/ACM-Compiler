@@ -77,13 +77,23 @@ def remove_unreachable(function: IRFunction):
                     # This block should have been pruned; handle as needed
                     pass
 
+    for block in new_blocks:
+        # Update predecessor list
+        new_predecessors: list[BBExit] = []
+        for pred in block.predecessors:
+            pred_block = pred.block
+            if pred_block in reachable and (pred_block, block) not in function.edge_to_remove:
+                new_predecessors.append(BBExit(pred_block, pred_block.successors.index(block)))
+        block.predecessors = new_predecessors
+
     function.blocks = new_blocks
     function.edge_to_remove.clear()
 
     copy_propagation(function)
 
+
 def copy_propagation(function: IRFunction):
-    rename_map : dict[str, str] = {}
+    rename_map: dict[str, str] = {}
     for block in function.blocks:
         for cmd in block.cmds:
             cmd.var_use = [rename_map.get(var, var) for var in cmd.var_use]
