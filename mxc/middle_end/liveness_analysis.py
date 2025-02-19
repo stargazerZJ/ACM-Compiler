@@ -30,7 +30,7 @@ def liveness_analysis(function: IRFunction):
                 return
         block.live_in.add(var)
         for pred in block.predecessors:
-            scan_block(pred.block)
+            scan_block(pred)
 
     def scan_live_in(block: IRBlock, cmd_ind: int):
         for cmd in block.cmds[:cmd_ind][::-1]:
@@ -41,7 +41,7 @@ def liveness_analysis(function: IRFunction):
                 return
         block.live_in.add(var)
         for pred in block.predecessors:
-            scan_block(pred.block)
+            scan_block(pred)
 
     visited: set[IRBlock] = set()
     for var, uses in use_sites.items():

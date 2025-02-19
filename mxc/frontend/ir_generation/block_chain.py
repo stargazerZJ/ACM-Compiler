@@ -31,7 +31,7 @@ class BlockChain:
         for exit_ in exits:
             BlockChain.ensure_jump(exit_.block)
             exit_.block.successors[exit_.idx] = block
-            block.predecessors.append(exit_)
+            block.predecessors.append(exit_.block)
 
     @staticmethod
     def ensure_jump(block: IRBlock):

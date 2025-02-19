@@ -133,7 +133,7 @@ class BBExit:
 class IRBlock:
     name: str
     cmds: list[IRCmdBase]
-    predecessors: list[BBExit]
+    predecessors: list["IRBlock"]
     successors: list["IRBlock"]
     index: int
     unreachable_mark: bool

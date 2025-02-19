@@ -150,7 +150,7 @@ class ASMBuilder(ASMBuilderUtils):
         for ir_block, asm_block in zip(ir_blocks, asm_blocks):
             ir_block: IRBlock
             asm_block: ASMBlock
-            asm_block.predecessors = [asm_blocks[pred.block.index] for pred in ir_block.predecessors]
+            asm_block.predecessors = [asm_blocks[pred.index] for pred in ir_block.predecessors]
             asm_block.successors = [asm_blocks[succ.index] for succ in ir_block.successors]
             if len(asm_block.successors) == 2:
                 branch = ir_block.cmds[-1]
@@ -366,7 +366,6 @@ class ASMBuilder(ASMBuilderUtils):
             phi_to = self.prepare_var_to([phi.dest for phi in phi_cmds])
 
             for pred_id, ir_pred in enumerate(ir_block.predecessors):
-                ir_pred = ir_pred.block
                 pred = asm_blocks[ir_pred.index]
                 phi_from = self.prepare_var_from([phi.lookup(ir_pred) for phi in phi_cmds])
                 if len(ir_pred.successors) > 1:

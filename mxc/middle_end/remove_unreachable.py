@@ -79,11 +79,10 @@ def remove_unreachable(function: IRFunction):
 
     for block in new_blocks:
         # Update predecessor list
-        new_predecessors: list[BBExit] = []
+        new_predecessors: list[IRBlock] = []
         for pred in block.predecessors:
-            pred_block = pred.block
-            if pred_block in reachable and (pred_block, block) not in function.edge_to_remove:
-                new_predecessors.append(BBExit(pred_block, pred_block.successors.index(block)))
+            if pred in reachable and (pred, block) not in function.edge_to_remove:
+                new_predecessors.append(pred)
         block.predecessors = new_predecessors
 
     function.blocks = new_blocks
