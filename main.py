@@ -167,14 +167,20 @@ def compile(options: CompilerOptions):
 
     # Optimizations
     try:
+        if options.dump_ir:
+            Path("dumps").mkdir(exist_ok=True)
+            counter = 0
+            with open(f"dumps/ir-{counter}-initial.ll", "w") as f:
+                print(ir.llvm(), file=f)
         for opt_pass in OPTIMIZATION_PRESETS[options.optimization_level]:
             print(f"Running {opt_pass.name}...", file=sys.stderr)
             opt_pass.apply(ir)
 
             # Dump intermediate results if requested
             if options.dump_ir:
-                Path("dumps").mkdir(exist_ok=True)
-                with open(f"dumps/ir-after-{opt_pass.name}.ll", "w") as f:
+                # noinspection PyUnboundLocalVariable
+                counter += 1
+                with open(f"dumps/ir-{counter}-after-{opt_pass.name}.ll", "w") as f:
                     print(ir.llvm(), file=f)
         if options.emit_llvm:
             print(ir.llvm())
