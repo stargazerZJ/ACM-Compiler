@@ -6,9 +6,9 @@ from mxc.middle_end.utils import mark_blocks, build_control_flow_graph
 
 def collect_mem_defs(blocks: list[IRBlock], allocas: set[str]):
     # return [{var for cmd in block for var in cmd.var_def} for block in blocks]
-    return [{cmd.dest
+    return [{cmd.mem_dest
              for cmd in block
-             if isinstance(cmd, IRStore) and cmd.dest in allocas}
+             if isinstance(cmd, IRStore) and cmd.mem_dest in allocas}
             for block in blocks]
 
 
@@ -82,8 +82,8 @@ def mem2reg(function: IRFunction):
                 rename_map.get(var, var) for var in cmd.var_use
             ]
             if isinstance(cmd, IRStore):
-                if cmd.dest in allocas:
-                    stack[cmd.dest].append(cmd.src)
+                if cmd.mem_dest in allocas:
+                    stack[cmd.mem_dest].append(cmd.src)
             elif isinstance(cmd, IRLoad):
                 if cmd.src in allocas:
                     rename_map[cmd.dest] = stack[cmd.src][-1]
@@ -102,11 +102,11 @@ def mem2reg(function: IRFunction):
             stack[pointer_name].pop()
         for cmd in blocks[index]:
             if isinstance(cmd, IRStore):
-                if cmd.dest in allocas:
-                    stack[cmd.dest].pop()
+                if cmd.mem_dest in allocas:
+                    stack[cmd.mem_dest].pop()
         blocks[index].cmds = [cmd for cmd in blocks[index]
                               if (not isinstance(cmd, IRLoad) or cmd.src not in allocas)
-                              and (not isinstance(cmd, IRStore) or cmd.dest not in allocas)]
+                              and (not isinstance(cmd, IRStore) or cmd.mem_dest not in allocas)]
 
     dfs(0)
 

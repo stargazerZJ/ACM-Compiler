@@ -36,7 +36,7 @@ def get_global_variables(function):
                     global_var_types[addr] = cmd.typ
                     global_var_count[addr] = global_var_count.get(addr, 0) + 1
             elif isinstance(cmd, IRStore):
-                addr = cmd.dest
+                addr = cmd.mem_dest
                 if addr[0] == '@':
                     global_var_types[addr] = cmd.typ
                     global_var_count[addr] = global_var_count.get(addr, 0) + 1

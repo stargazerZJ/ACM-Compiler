@@ -236,9 +236,9 @@ class ASMBuilder(ASMBuilderUtils):
                 if store_cmd is not None:
                     block.add_cmd(store_cmd)
             elif isinstance(cmd, IRStore):
-                if cmd.dest in self.allocation_table:
+                if cmd.mem_dest in self.allocation_table:
                     width = "sb" if cmd.typ == "i1" else "sw"
-                    value, pos = self.prepare_operands(block, cmd.src, cmd.dest)
+                    value, pos = self.prepare_operands(block, cmd.src, cmd.mem_dest)
                     assert not isinstance(value, OperandImm)
                     assert not isinstance(pos, OperandImm)
                     block.add_cmd(ASMMemOp(width, str(value), 0, str(pos)))
@@ -246,7 +246,7 @@ class ASMBuilder(ASMBuilderUtils):
                     value, tmp_used = self.prepare_operand(block, cmd.src, "t0")
                     tmp_reg = "t1" if tmp_used else "t0"
                     assert not isinstance(value, OperandImm)
-                    pos = self.global_symbol_table[cmd.dest]
+                    pos = self.global_symbol_table[cmd.mem_dest]
                     block.add_cmd(ASMMemOp("sw", str(value), pos.label, tmp_reg=tmp_reg))
             elif isinstance(cmd, IRJump):
                 block.set_flow_control(ASMFlowControl.jump(block))

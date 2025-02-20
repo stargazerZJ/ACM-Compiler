@@ -9,6 +9,12 @@ class IRCmdBase:
     live_out: set[str]
     node: str
 
+    @property
+    def dest(self): raise NotImplementedError()
+
+    @property
+    def dest_typ(self): raise NotImplementedError()
+
     def llvm(self) -> str:
         raise NotImplementedError()
 
@@ -25,6 +31,9 @@ class IRBinOp(IRCmdBase):
 
     @property
     def dest(self): return self.var_def[0]
+
+    @property
+    def dest_typ(self): return self.typ
 
     @property
     def lhs(self): return self.var_use[0]
@@ -47,6 +56,9 @@ class IRIcmp(IRCmdBase):
     def dest(self): return self.var_def[0]
 
     @property
+    def dest_typ(self): return "i1"
+
+    @property
     def lhs(self): return self.var_use[0]
 
     @property
@@ -64,6 +76,9 @@ class IRLoad(IRCmdBase):
 
     @property
     def dest(self): return self.var_def[0]
+
+    @property
+    def dest_typ(self): return self.typ
 
     @property
     def src(self): return self.var_use[0]
@@ -86,7 +101,7 @@ class IRStore(IRCmdBase):
         self.typ = typ
 
     @property
-    def dest(self): return self.var_use[0]
+    def mem_dest(self): return self.var_use[0]
 
     @property
     def src(self): return self.var_use[1]
@@ -99,7 +114,7 @@ class IRStore(IRCmdBase):
         self.var_use[0] = value
 
     def llvm(self):
-        return f"store {self.typ} {self.src}, ptr {self.dest}"
+        return f"store {self.typ} {self.src}, ptr {self.mem_dest}"
 
 
 class IRAlloca(IRCmdBase):
@@ -249,11 +264,12 @@ class IRPhi(IRCmdBase):
     def dest(self):
         return self.var_def[0]
 
+    @property
+    def dest_typ(self): return self.typ
+
+
     def lookup(self, block: IRBlock):
-        for source, value in zip(self.sources, self.var_use):
-            if source.name == block.name:
-                return value
-        raise AssertionError(f"No matching phi value found for block: {block.name}")
+        return self.var_use[self.sources.index(block)]
 
     def llvm(self):
         ret = f"{self.dest} = phi {self.typ} "
@@ -272,6 +288,9 @@ class IRCall(IRCmdBase):
 
     @property
     def dest(self): return self.var_def[0] if self.var_def else ""
+
+    @property
+    def dest_typ(self): return self.typ
 
     def set_tail_call(self):
         self.tail_call = True
@@ -305,6 +324,9 @@ class IRGetElementPtr(IRCmdBase):
     @property
     def dest(self):
         return self.var_def[0]
+
+    @property
+    def dest_typ(self): return "ptr"
 
     @property
     def ptr(self):
