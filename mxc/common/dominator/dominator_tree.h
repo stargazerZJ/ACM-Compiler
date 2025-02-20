@@ -13,7 +13,7 @@ using graph_type = std::vector<std::vector<int>>;
 class DominatorTree {
     // source: https://www.luogu.com.cn/article/xzjzyi12
 private:
-    int num_nodes, edge_count = 0, dfs_count = 0;
+    int num_nodes, edge_count = 0, dfs_count = 0, start_node = 0;
     std::vector<std::vector<int>> original_graph, reverse_graph, semi_dominator_tree;
     std::vector<int> dfs_number, dfs_order, parent, immediate_dominator, semi_dominator, disjoint_set, min_vertex,
                      subtree_size;
@@ -36,8 +36,8 @@ private:
         }
     }
 
-    void compute_dominators(int start) {
-        dfs(start);
+    void compute_dominators() {
+        dfs(start_node);
         for (int i            = 1; i <= num_nodes; ++i)
             semi_dominator[i] = disjoint_set[i] = min_vertex[i] = i;
 
@@ -95,7 +95,7 @@ private:
             }
         };
 
-        dfs(1);
+        dfs(start_node);
 
         return dfs_order;
     }
@@ -146,7 +146,8 @@ public:
     }
 
     void compute(int start = 0) {
-        compute_dominators(start + 1);
+        start_node = start + 1; // Convert to 1-indexed graph.
+        compute_dominators();
     }
 
     /**

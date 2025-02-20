@@ -7,7 +7,7 @@ from mxc.common.dominator import DominatorTree
 from mxc.common.ir_repr import IRBinOp, IRBlock, IRCmdBase, IRPhi, IRIcmp, IRGetElementPtr, IRFunction
 from mxc.common.renamer import renamer
 from mxc.middle_end.remove_unreachable import copy_propagation
-from mxc.middle_end.utils import mark_blocks, build_control_flow_graph
+from mxc.middle_end.utils import mark_blocks, build_control_flow_graph, build_reverse_control_flow_graph
 
 
 @dataclass(frozen=True)
@@ -255,13 +255,16 @@ def gvn_pre(function: IRFunction):
     mark_blocks(blocks)
 
     cfg = build_control_flow_graph(blocks)
-    reverse_cfg = build_control_flow_graph(blocks)
+    reverse_cfg, end_node = build_reverse_control_flow_graph(blocks)
 
     dom_tree = DominatorTree(cfg)
+    dom_tree.compute()
     immediate_dominator = dom_tree.get_immediate_dominators()
     dominator_tree_order = dom_tree.get_dominator_tree_dfs_order()
     reverse_dom_tree = DominatorTree(reverse_cfg)
+    reverse_dom_tree.compute(end_node)
     post_dominator_tree_order = reverse_dom_tree.get_dominator_tree_dfs_order()
+    post_dominator_tree_order.pop(0) # Remove the end node
 
     dominator_children = [[] for _ in range(len(blocks))]
     for i, dom in enumerate(immediate_dominator[1:]):
