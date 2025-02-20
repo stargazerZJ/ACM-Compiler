@@ -207,10 +207,10 @@ class IRJump(IRCmdBase):
     def __init__(self, dest: BBExit):
         self.var_def = []
         self.var_use = []
-        self.dest = dest
+        self.jump_dest = dest
 
     def llvm(self):
-        return f"br label %{self.dest.llvm()}"
+        return f"br label %{self.jump_dest.llvm()}"
 
 
 class IRBranch(IRCmdBase):

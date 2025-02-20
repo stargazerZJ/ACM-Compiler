@@ -230,7 +230,7 @@ class SparseConditionalConstantPropagation:
             else:
                 assert False, "Unknown binop operator"
         elif isinstance(cmd, IRJump):
-            self.cfg_work_list.append((block_id, cmd.dest.get_dest().index))
+            self.cfg_work_list.append((block_id, cmd.jump_dest.get_dest().index))
             return
         elif isinstance(cmd, IRBranch):
             cond_value = self.get_value(cmd.cond)
