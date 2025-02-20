@@ -49,3 +49,53 @@ def get_dominator_tree_dfs_order(graph: graph_type) -> list[int]:
     :param graph: The 0-indexed adjacency list of the graph.
     :return: A vector containing the DFS order of the dominator tree nodes.
     """
+
+class DominatorTree:
+    def __init__(self, graph: graph_type):
+        """
+        Construct the dominator tree from a directed graph.
+
+        :param graph: The directed graph represented as an adjacency list.
+        """
+        pass
+
+    def compute(self, start_node: int = 0):
+        """
+        Computes the dominator tree starting from a specified node.
+
+        :param start_node: The node to start the computation from.
+        """
+        pass
+
+    def get_dominated_node_counts(self) -> List[int]:
+        """
+        Computes and returns the number of nodes each node dominates starting from a specified node.
+
+        :return: A vector containing the number of nodes each node dominates.
+        """
+        pass
+
+    def get_immediate_dominators(self) -> List[int]:
+        """
+        Computes and returns the immediate dominators of each node starting from a specified node.
+
+        :return: A vector containing the immediate dominator of each node.
+        """
+        pass
+
+    def get_dfs_order(self) -> List[int]:
+        """
+        Computes and returns the DFS order of the original graph.
+
+        :return: A vector containing the DFS order of the original graph.
+        """
+        pass
+
+    def get_dominator_tree_dfs_order(self) -> List[int]:
+        """
+        Computes and returns the DFS order of the dominator tree.
+
+        :return: A vector containing the DFS order of the dominator tree.
+        """
+        pass
+

@@ -74,6 +74,32 @@ private:
         return subtree_size;
     }
 
+    std::vector<int> get_dominator_tree_dfs_order_1_ind() {
+        graph_type dominator_tree(num_nodes + 1);
+        for (int i = 1; i <= num_nodes; ++i) {
+            if (immediate_dominator[i] != 0) {
+                dominator_tree[immediate_dominator[i]].push_back(i);
+            }
+        }
+
+        std::vector<int> dfs_order;
+        std::vector<bool> visited(num_nodes + 1, false);
+
+        std::function<void(int)> dfs = [&](int node) {
+            visited[node] = true;
+            dfs_order.push_back(node);
+            for (int neighbor : dominator_tree[node]) {
+                if (!visited[neighbor]) {
+                    dfs(neighbor);
+                }
+            }
+        };
+
+        dfs(1);
+
+        return dfs_order;
+    }
+
 public:
     /**
      * @brief Constructor to initialize the DominatorTree with a given number of nodes.
@@ -154,6 +180,14 @@ public:
         }
         return dfs_0_ind;
     }
+
+    std::vector<int> get_dominator_tree_dfs_order() {
+        auto dfs_order = get_dominator_tree_dfs_order_1_ind();
+        for (int& node : dfs_order) {
+            node--;
+        }
+        return dfs_order;
+    }
 };
 
 /**
@@ -165,32 +199,5 @@ public:
 inline std::vector<int> get_dominator_tree_dfs_order(const graph_type& graph) {
     DominatorTree dt(graph);
     dt.compute();
-    auto idom = dt.get_immediate_dominators();
-
-    // Create the dominator tree from the immediate dominators
-    graph_type dominator_tree(graph.size());
-    for (int i = 0; i < idom.size(); ++i) {
-        if (idom[i] != -1) {
-            dominator_tree[idom[i]].push_back(i);
-        }
-    }
-
-    // Perform DFS on the dominator tree to get the DFS order
-    std::vector<int>  dfs_order;
-    std::vector<bool> visited(graph.size(), false);
-    dfs_order.reserve(graph.size());
-
-    std::function<void(int)> dfs = [&](int node) {
-        visited[node] = true;
-        dfs_order.push_back(node);
-        for (int neighbor : dominator_tree[node]) {
-            if (!visited[neighbor]) {
-                dfs(neighbor);
-            }
-        }
-    };
-
-    dfs(0);
-
-    return dfs_order;
+    return dt.get_dominator_tree_dfs_order();
 }
