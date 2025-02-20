@@ -10,6 +10,9 @@ def mark_blocks(blocks: list[IRBlock]):
 def build_control_flow_graph(blocks: list[IRBlock]) -> dominator.graph_type:
     return [[s.index for s in block.successors] for block in blocks]
 
+def build_reverse_control_flow_graph(blocks: list[IRBlock]) -> dominator.graph_type:
+    return [[s.index for s in block.predecessors] for block in blocks]
+
 
 def collect_commands(blocks: list[IRBlock]) -> list:
     command_list = []

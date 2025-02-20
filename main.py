@@ -14,12 +14,13 @@ from mxc.frontend.semantic.syntax_checker import SyntaxChecker
 from mxc.frontend.semantic.syntax_error import MxSyntaxError, ThrowingErrorListener
 from mxc.frontend.ir_generation.ir_builder import IRBuilder
 from mxc.common.ir_repr import IRModule
+from mxc.middle_end.gvn_pre import gvn_pre
 from mxc.middle_end.mem2reg import mem2reg
 from mxc.middle_end.mir import mir_builder
 from mxc.middle_end.liveness_analysis import liveness_analysis
 from mxc.middle_end.dce import naive_dce
 from mxc.middle_end.globalvar import inline_global_variables
-from mxc.middle_end.remove_unreachable import remove_unreachable
+from mxc.middle_end.remove_unreachable import remove_unreachable, copy_propagation
 from mxc.middle_end.sccp import sparse_conditional_constant_propagation
 from mxc.middle_end.utils import rearrange_in_rpo
 
@@ -87,6 +88,12 @@ OPTIMIZATION_PRESETS = {
         OptimizationPass(sparse_conditional_constant_propagation, "Sparse Conditional Constant Propagation"),
         OptimizationPass(remove_unreachable, "Remove Unreachable Blocks"),
         OptimizationPass(naive_dce, "Dead Code Elimination (post SCCP)"),
+    ],
+    "gvn_pre": [
+        OptimizationPass(mem2reg, "Memory-to-Register Promotion"),
+        OptimizationPass(naive_dce, "Dead Code Elimination (post mem2reg)"),
+        OptimizationPass(gvn_pre, "Global Value Numbering - Partial Redundancy Elimination"),
+        OptimizationPass(copy_propagation, "Copy Propagation"),
     ]
 }
 
