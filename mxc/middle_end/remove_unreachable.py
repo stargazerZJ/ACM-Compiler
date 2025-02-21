@@ -95,10 +95,13 @@ def copy_propagation(function: IRFunction):
     rename_map: dict[str, str] = {}
     for block in function.blocks:
         for cmd in block.cmds:
-            cmd.var_use = [rename_map.get(var, var) for var in cmd.var_use]
             if isinstance(cmd, IRPhi):
                 if len(cmd.sources) == 1:
                     rename_map[cmd.dest] = cmd.var_use[0]
             elif isinstance(cmd, IRBinOp):
                 if cmd.op == "add" and cmd.rhs == "0":
                     rename_map[cmd.dest] = cmd.lhs
+    if not rename_map: return
+    for block in function.blocks:
+        for cmd in block.cmds:
+            cmd.var_use = [rename_map.get(var, var) for var in cmd.var_use]
