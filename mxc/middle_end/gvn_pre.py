@@ -63,10 +63,11 @@ class ValueTable:
         return self.expressions.get(expr)
 
     def phi_translate(self, pred: IRBlock, succ: IRBlock,
-                      value: int, expr: Expression, phi_gen: dict[int, list[int]]) -> [int, Expression]:
-        if not isinstance(expr, BinOpExpression): return value, expr
+                      value: int, expr: Expression, phi_gen: dict[int, list[tuple[int, Temporary]]]) -> tuple[int, Expression]:
         pred_index = succ.predecessors.index(pred)
-        translate = lambda v: phi_gen[v][pred_index] if v in phi_gen else v
+        translate = lambda v: phi_gen[v][pred_index][0] if v in phi_gen else v
+        if not isinstance(expr, BinOpExpression):
+            return phi_gen[value][pred_index] if value in phi_gen else (value, expr)
         new_expr = BinOpExpression(
             expr.op,
             translate(expr.v1),
@@ -74,7 +75,7 @@ class ValueTable:
         )
         if new_expr == expr:
             return value, expr
-        return self.query_or_assign(new_expr, self.ir_expressions[value])
+        return self.query_or_assign(new_expr, self.ir_expressions[value]), new_expr
 
     def reconstruct(self, avail_out: dict[int, Temporary], value: int, expr: BinOpExpression):
         new_ir_expr = deepcopy(self.ir_expressions[value])
@@ -105,14 +106,14 @@ def build_sets(blocks: list[IRBlock],
                immediate_dominator: list[int],
                dominator_tree_order: list[int],
                post_dominator_tree_order: list[int],
-               value_table: ValueTable) -> [
+               value_table: ValueTable) -> tuple[
     list[dict[int, Temporary]],
     list[dict[int, Expression]],
-    list[dict[int, list[int]]]]:
+    list[dict[int, list[tuple[int, Temporary]]]]]:
     n = len(blocks)
     avail_out: list[dict[int, Temporary]] = [{} for _ in range(n)]
     antic_in: list[dict[int, Expression]] = [{} for _ in range(n)]
-    phi_gen: list[dict[int, list[int]]] = [{} for _ in range(n)]
+    phi_gen: list[dict[int, list[tuple[int, Temporary]]]] = [{} for _ in range(n)]
     tmp_gen: list[dict[int, Temporary]] = [{} for _ in range(n)]
 
     # Phase 1
@@ -136,15 +137,21 @@ def build_sets(blocks: list[IRBlock],
                 exp_gen.setdefault(value, expr)
                 def_value = value
             elif isinstance(cmd, IRPhi):
-                tmp_use = [Temporary(cmd.lookup(pred)) for pred in block.predecessors]
-                val_use = [value_table.query_or_assign(tmp, None) for tmp in tmp_use]
                 def_value = value_table.assign(tmp_def)
-                phi_gen[i][def_value] = val_use
             if not isinstance(cmd, IRPhi):
                 def_value = value_table.assign(tmp_def, def_value)
                 tmp_gen[i].setdefault(def_value, tmp_def)
             avail_out[i].setdefault(def_value, tmp_def)
         antic_in[i] = clean(exp_gen, tmp_gen[i])
+
+    # Phase 1.5
+    for i, block in enumerate(blocks):
+        for phi in block.cmds:
+            if not isinstance(phi, IRPhi): break
+            tmp_use = [Temporary(phi.lookup(pred)) for pred in block.predecessors]
+            val_use = [value_table.query_or_assign(tmp, None) for tmp in tmp_use]
+            def_value = value_table.query(Temporary(phi.dest))
+            phi_gen[i][def_value] = list(zip(val_use, tmp_use))
 
     # Phase 2
     converged = False
@@ -179,7 +186,7 @@ def insert(blocks: list[IRBlock],
            dominator_children: list[list[int]],
            avail_out: list[dict[int, Temporary]],
            antic_in: list[dict[int, Expression]],
-           phi_gen: list[dict[int, list[int]]],
+           phi_gen: list[dict[int, list[tuple[int, Temporary]]]],
            value_table: ValueTable):
     converged = False
     while not converged:
@@ -194,7 +201,7 @@ def insert(blocks: list[IRBlock],
                         continue
                     translated = [value_table.phi_translate(pred, block, value, expr, phi_gen[i])
                                   for pred in block.predecessors]
-                    leaders = [(avail_out[pred.index].get(value))
+                    leaders = [(avail_out[pred.index].get(value[0]))
                                   for value, pred in zip(translated, block.predecessors)]
                     if all(leaders) or not any(leaders):
                         continue
@@ -220,7 +227,7 @@ def insert(blocks: list[IRBlock],
                     new_set[i][value] = tmp = Temporary(phi_cmd.dest)
                     avail_out[i][value] = tmp
                     value_table.assign(tmp, value)
-                    phi_gen[i][value] = [vt for vt, _ in translated]
+                    phi_gen[i][value] = list(zip((vt for vt, _ in translated), leaders))
                 avail_out[i].update(new_set[i])
             for c in dominator_children[i]:
                 new_set[c].update(new_set[i])

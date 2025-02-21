@@ -3,6 +3,7 @@ from collections import defaultdict
 from mxc.common.ir_repr import IRFunction, IRRet, UnreachableBlock, IRPhi, IRBranch, IRJump, BBExit, IRBinOp
 from mxc.common.ir_repr import IRBlock
 from mxc.common.renamer import renamer
+from mxc.middle_end.utils import rearrange_in_rpo, mark_blocks
 
 
 def remove_unreachable(function: IRFunction):
@@ -135,3 +136,6 @@ def remove_critical_edge(function: IRFunction):
             phi.sources[pred_index] = split
 
     function.blocks.extend(new_blocks)
+
+    mark_blocks(function.blocks)
+    rearrange_in_rpo(function)

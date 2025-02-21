@@ -95,6 +95,7 @@ OPTIMIZATION_PRESETS = {
         OptimizationPass(remove_critical_edge, "Remove Critical Edges"),
         OptimizationPass(gvn_pre, "Global Value Numbering - Partial Redundancy Elimination"),
         OptimizationPass(copy_propagation, "Copy Propagation"),
+        OptimizationPass(naive_dce, "Dead Code Elimination (post GVN)"),
     ]
 }
 
