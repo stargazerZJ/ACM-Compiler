@@ -2,6 +2,7 @@ from collections import defaultdict
 
 from mxc.common.ir_repr import IRFunction, IRRet, UnreachableBlock, IRPhi, IRBranch, IRJump, BBExit, IRBinOp
 from mxc.common.ir_repr import IRBlock
+from mxc.common.renamer import renamer
 
 
 def remove_unreachable(function: IRFunction):
@@ -105,3 +106,32 @@ def copy_propagation(function: IRFunction):
     for block in function.blocks:
         for cmd in block.cmds:
             cmd.var_use = [rename_map.get(var, var) for var in cmd.var_use]
+
+def remove_critical_edge(function: IRFunction):
+    blocks = function.blocks
+    critical_edges = [
+        (block, succ)
+        for block in blocks
+        if len(block.successors) > 1
+        for succ in block.successors
+        if len(succ.predecessors) > 1
+    ]
+    if not critical_edges: return
+
+    new_blocks = []
+    for block, succ in critical_edges:
+        split = IRBlock(renamer.get_name("split"))
+        new_blocks.append(split)
+        split.successors = [succ]
+        split.predecessors = [block]
+        split.add_cmd(IRJump(BBExit(split, 0)))
+
+        block.successors[block.successors.index(succ)] = split
+
+        succ.predecessors[succ.predecessors.index(block)] = split
+        for phi in succ.cmds:
+            if not isinstance(phi, IRPhi): break
+            pred_index = phi.sources.index(block)
+            phi.sources[pred_index] = split
+
+    function.blocks.extend(new_blocks)

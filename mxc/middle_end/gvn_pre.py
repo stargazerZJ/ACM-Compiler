@@ -6,7 +6,7 @@ from typing import Optional, Dict, Set, List, Tuple
 from mxc.common.dominator import DominatorTree
 from mxc.common.ir_repr import IRBinOp, IRBlock, IRCmdBase, IRPhi, IRIcmp, IRGetElementPtr, IRFunction
 from mxc.common.renamer import renamer
-from mxc.middle_end.remove_unreachable import copy_propagation
+from mxc.middle_end.cfg_transform import copy_propagation
 from mxc.middle_end.utils import mark_blocks, build_control_flow_graph, build_reverse_control_flow_graph
 
 

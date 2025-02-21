@@ -20,7 +20,7 @@ from mxc.middle_end.mir import mir_builder
 from mxc.middle_end.liveness_analysis import liveness_analysis
 from mxc.middle_end.dce import naive_dce
 from mxc.middle_end.globalvar import inline_global_variables
-from mxc.middle_end.remove_unreachable import remove_unreachable, copy_propagation
+from mxc.middle_end.cfg_transform import remove_unreachable, copy_propagation, remove_critical_edge
 from mxc.middle_end.sccp import sparse_conditional_constant_propagation
 from mxc.middle_end.utils import rearrange_in_rpo
 
@@ -92,6 +92,7 @@ OPTIMIZATION_PRESETS = {
     "gvn_pre": [
         OptimizationPass(mem2reg, "Memory-to-Register Promotion"),
         OptimizationPass(naive_dce, "Dead Code Elimination (post mem2reg)"),
+        OptimizationPass(remove_critical_edge, "Remove Critical Edges"),
         OptimizationPass(gvn_pre, "Global Value Numbering - Partial Redundancy Elimination"),
         OptimizationPass(copy_propagation, "Copy Propagation"),
     ]
