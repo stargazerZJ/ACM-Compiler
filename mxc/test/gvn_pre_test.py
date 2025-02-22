@@ -116,7 +116,7 @@ def build_ir_module():
 OPTIMIZATION_PRESETS["gvn_pre_test"] = [
     OptimizationPass(gvn_pre, "Global Value Numbering - Partial Redundancy Elimination"),
     OptimizationPass(copy_propagation, "Copy Propagation"),
-    OptimizationPass(naive_dce, "Dead Code Elimination (post GVN)"),
+    # OptimizationPass(naive_dce, "Dead Code Elimination (post GVN)"),
 ]
 
 if __name__ == "__main__":

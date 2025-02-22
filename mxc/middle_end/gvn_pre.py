@@ -44,7 +44,7 @@ class ValueTable:
     def __init__(self):
         self.expressions: Dict[Expression, int] = {}
         self.number = 0
-        self.ir_expressions: list[IRCmdBase | None] = []
+        self.ir_expressions: list[IRCmdBase | Temporary] = []
 
     def query_or_assign(self, expr: Expression, ir_exp: IRCmdBase | None) -> int:
         if expr in self.expressions:
@@ -54,7 +54,8 @@ class ValueTable:
     def assign(self, exp: Expression, number: int | None = None, ir_exp: IRCmdBase | None = None):
         if number is None:
             number = self.number
-            self.ir_expressions.append(ir_exp)
+            assert ir_exp or isinstance(exp, Temporary), "Cannot assign a new expression without IR expression"
+            self.ir_expressions.append(ir_exp or exp)
             self.number += 1
         self.expressions[exp] = number
         return number
@@ -68,7 +69,7 @@ class ValueTable:
         translate = lambda v: phi_gen[v][pred_index][0] if v in phi_gen else v
         if not isinstance(expr, BinOpExpression):
             return phi_gen[value][pred_index] if value in phi_gen else (value, expr)
-        new_expr = BinOpExpression(
+        new_expr = BinOpExpression.new(
             expr.op,
             translate(expr.v1),
             translate(expr.v2)
@@ -80,12 +81,15 @@ class ValueTable:
     def reconstruct(self, avail_out: dict[int, Temporary], value: int, expr: BinOpExpression):
         new_ir_expr = deepcopy(self.ir_expressions[value])
         for i in range(2):
-            if expr.depends_on()[i] in avail_out:
-                new_ir_expr.var_use[i] = avail_out[expr.depends_on()[i]].reg
+            v = expr.depends_on()[i]
+            if v in avail_out:
+                new_ir_expr.var_use[i] = avail_out[v].reg
             else:
-                original_name = new_ir_expr.var_use[i]
-                assert not original_name.startswith('%') or original_name.endswith('.param'), \
-                    f"Temporary {original_name} not found in avail_out"
+                temporary = self.ir_expressions[v]
+                operand = temporary.reg
+                assert not operand.startswith('%') or operand.endswith('.param'), \
+                    f"Temporary {operand} not found in avail_out"
+                new_ir_expr.var_use[i] = operand
         new_ir_expr.var_def[0] = renamer.get_name(new_ir_expr.var_def[0])
         return new_ir_expr
 
@@ -199,13 +203,16 @@ def insert(blocks: list[IRBlock],
                 for value, expr in antic_in[i].items():
                     if not isinstance(expr, BinOpExpression):
                         continue
+                    if value in phi_gen[i]:
+                        continue
                     translated = [value_table.phi_translate(pred, block, value, expr, phi_gen[i])
                                   for pred in block.predecessors]
                     leaders = [(avail_out[pred.index].get(value[0]))
                                   for value, pred in zip(translated, block.predecessors)]
-                    if all(leaders) or not any(leaders):
-                        continue
+                    # if all(leaders):
+                    #     continue
                     converged = False
+                    typ = "i32" # Temporary fix
                     for j, pred in enumerate(block.predecessors):
                         if leaders[j]:
                             continue
@@ -255,6 +262,9 @@ def eliminate(blocks: list[IRBlock],
             else:
                 new_cmds.append(cmd)
             avail_in.setdefault(current_value, current_tmp)
+        # Ensure phi nodes are at the beginning of the block (temporary fix)
+        new_cmds = ([cmd for cmd in new_cmds if isinstance(cmd, IRPhi)]
+                    + [cmd for cmd in new_cmds if not isinstance(cmd, IRPhi)])
         block.cmds = new_cmds
 
 def gvn_pre(function: IRFunction):
