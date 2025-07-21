@@ -113,25 +113,6 @@ scripts/test_asm.bash './main.py -o - -O sccp' testcases/optim/pi.mx mxc/runtime
 scripts/test_llvm_ir_all.bash './main.py --emit-llvm -O gvn_pre' testcases/optim-new mxc/runtime/builtin.ll
 ```
 
-## Semantic Analysis Test Suites
-
-The semantic analyzer can be tested against various test packages:
-
-- `testcases/sema/array-package/` - Array-related tests
-- `testcases/sema/basic-package/` - Basic language feature tests
-- `testcases/sema/class-package/` - Object-oriented programming tests
-- `testcases/sema/function-package/` - Function-related tests
-- `testcases/sema/loop-package/` - Loop construct tests
-- And many more specialized test packages
-
-## Tips for Testing
-
-1. **Start with basic tests**: Begin with `testcases/codegen` before moving to optimization tests
-2. **Use appropriate output directories**: Always specify a temporary directory for outputs
-3. **Check optimization compatibility**: Some optimization presets are for debugging and may not be backend-compatible
-4. **Monitor performance**: Use optimization tests in `testcases/optim` to verify performance improvements
-5. **Semantic testing**: Run semantic tests frequently during development to catch early issues
-
 ## Troubleshooting
 
 - If tests fail, check that all dependencies (especially `pybind11`) are properly installed
