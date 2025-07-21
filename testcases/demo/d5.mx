@@ -1,0 +1,57 @@
+// for test
+
+int main() {
+    int a, b;
+    b = 1;
+    bool c, d;
+
+    for (a = 0; a < 10; a = a + 1) {
+        b = a + 1;
+        c = a < b;
+        d = a > b;
+    }
+
+    for (a = 0; a < 10; a = a + 1) {
+        if (1 < 2) {
+            1 + 1;
+            continue;
+        } else {
+            2 + 2;
+            break;
+        }
+        3 + 3;
+    }
+
+    for (a = 0; a < 10; a = a + 1) {
+        if (1 < 2) {
+            1 + 1;
+            continue;
+        } else {
+            2 + 2;
+        }
+        3 + 3;
+    }
+
+    if (1 < 1) {
+      for (;;);
+      1 + 1;
+    }
+
+    for (a = 0; a < 10; a = a + 1) {
+        if (2 < 3) {
+            continue;
+        } else {
+            continue;
+        }
+        4 + 4;
+    }
+
+    while (1 < 2) {
+        1 + 1;
+        if (c && true) {
+            break;
+        }
+    }
+
+    return 0;
+}

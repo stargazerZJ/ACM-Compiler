@@ -1,0 +1,31 @@
+// class define test
+
+
+class A {
+    int a;
+    int b;
+    A() {
+        1 + 1;
+        a = 1;
+        b = func(1, this.a);
+    }
+
+    int func(int a, int c) {
+        return a + b + c;
+    }
+};
+
+void func() {
+    return;
+}
+
+int main() {
+    func();
+    A a;
+    a = new A();
+    a.b;
+    a.a = 1;
+    a.b = a.a;
+    a.func(1 + 1, 2);
+    return 0;
+}

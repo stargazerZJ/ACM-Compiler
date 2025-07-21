@@ -1,0 +1,28 @@
+
+int main() {
+//    int t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+//    t1 = foo();
+//    for (t2 = t1; cond(); t2 = t3) {
+//        t3 = t2 + 1;
+//        if (cond()) {
+//            t4 = t2 + t3;
+//            t5 = t4;
+//            t6 = t1 + t5;
+//        }
+//    }
+
+    int t1, t2, t3, t4, t5, t6, t7, t8, t9, t10;
+    t1 = foo();
+    t2 = foo();
+    for (int i = 0; i < 10; i ++) {
+        t3 = t1 + t2; // t3 is loop invariant
+        bar(t3);
+    }
+    return 0;
+}
+
+int foo() { return 1; }
+
+int bar(int a) { return a; }
+
+bool cond() { return false; }

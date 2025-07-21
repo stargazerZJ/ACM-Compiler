@@ -1,0 +1,42 @@
+// array test
+
+class B {
+    int[] b;
+    B c;
+};
+
+int foo(int[] a) {
+    return 0;
+}
+
+int[] bar() {
+    return new int[10];
+}
+
+int[] global_arr = new int[10], global_arr2 = null;
+
+int main() {
+    int[] arr; int a = 20;
+    arr = null;
+    arr = new int[5];
+    arr = arr;
+    int[][] arr2 = new int[20][];
+    arr2 = new int[30][40];
+    arr[1 + 1] = 2;
+    arr2[2] = new int[10];
+    arr2[2][3] = 4;
+    (arr2[2])[3] = 4;
+    B[] arr3 = new B[10];
+    arr3[1] = new B;
+    int[][][] arr4 = new int[10][20][];
+    arr4[1][2] = new int[30];
+    ((arr4[1])[2])[3] = 4;
+    a = arr.size();
+    foo(arr);
+    foo(null);
+    B b = new B;
+    b.b = arr;
+    arr = b.b;
+    arr = bar();
+    return 0;
+}

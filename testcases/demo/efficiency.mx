@@ -1,0 +1,146 @@
+/*
+Test Package: Optim
+Author: 18' Zonghan YANG
+Time: 2021-04-01
+Input:
+=== input ===
+5 6
+1 1 4 5 1 4
+1 9 1 9 8 1 0
+=== end ===
+Output:
+=== output ===
+1
+10
+14
+51
+67
+63
+115
+57
+49
+33
+4
+0
+=== end ===
+ExitCode: 0
+RunTimeLimit: 2500000
+OutputLengthLimit: 10000
+CompileTimeLimit: 30
+*/
+
+// NTT, source: https://blog.csdn.net/wu_tongtong/article/details/77620709
+class taskNTT {
+    int N;
+    int mod;
+    int[] a, b;
+    int n, fn, m; 
+    taskNTT () {
+        N = 999;
+        mod = 998244353;
+        a = new int [N];
+        b = new int [N];
+    } 
+    int mulmod(int a, int b, int MOD) {
+        int ret = 0;
+        a = a % MOD;
+        while (b != 0) {
+            if ((b & 1) != 0) ret = (ret + a) % MOD;
+            b = b >> 1;
+            a = a << 1;
+            a = a % MOD;
+        }
+        return ret;
+    } 
+    int KSM(int a,int b) {
+        int t = 1;
+        while (b != 0) {
+            if ((b & 1) != 0) {
+               t= mulmod(t, a, mod);
+            }
+            b = b >> 1;
+            a = mulmod(a, a, mod);
+        }
+        return t;
+    } 
+    void reverse(int[] a, int s, int t) {
+        print("Reverse: ");
+        printInt(s);
+        print(" ");
+        printInt(t);
+        println("");
+        while ( s < t ) {
+            t--;
+            int tmp = a[s];
+            a[s] = a[t];
+            a[t] = tmp;
+            s++;
+        }
+    } 
+    void NTT(int n,int[] a,int opt) {
+        int i,j=0,k,l;
+        for (i=0;i<n;i++) {
+            if (i>j) {
+                int tmp = a[i];
+                a[i] = a[j];
+                a[j] = tmp;
+                //swap(a[i],a[j]);
+            }
+            for (l=n>>1; ;l=l>>1) {
+                j = j ^ l;
+                if (j>=l) break;
+            }
+            //for (l=n>>1;(j=j^l)<l;l=l>>1);
+        }
+        for (i=1;i<n;i=i << 1) {
+            int wn=KSM(3,(mod-1)/(i<<1));
+            int m=i<<1;
+            for (j=0;j<n;j=j+m) {
+                int w=1;
+                for (k=0;k<i;k++) {
+                    int z=mulmod(w, a[j+i+k], mod);
+                    a[i+j+k]=(a[j+k]-z+mod)%mod;
+                    a[j+k]=(a[j+k]+z)%mod;
+                    w=mulmod(w, wn, mod);
+                }
+            }
+        }
+        print("n = ");
+        printInt(n);
+        println("NTT:");
+        for (i=0;i<=n;i++) printlnInt(a[i]);
+        if (opt==-1) reverse(a,1,n);
+    }
+    int main() {
+        n=getInt();
+        m=getInt();
+        //scanf("%d%d",&n,&m);
+        int i;
+        for (i=0;i<=n;i++) a[i] = getInt(); // scanf("%d",&a[i]);
+        for (i=0;i<=m;i++) b[i] = getInt(); // scanf("%d",&b[i]);
+        fn=1;
+        while (fn<=n+m) fn=fn<<1;
+        NTT(fn,a,1); NTT(fn,b,1);
+        println("a:");
+        for (i=0;i<=fn;i++) printlnInt(a[i]);
+        println("b:");
+        for (i=0;i<=fn;i++) printlnInt(b[i]);
+        for (i=0;i<=fn;i++) a[i]=mulmod(a[i], b[i], mod) ;
+        println("a*b:");
+        for (i=0;i<=fn;i++) printlnInt(a[i]);
+        NTT(fn,a,-1);
+        println("a*b2:");
+        for (i=0;i<=fn;i++) printlnInt(a[i]);
+        int t=KSM(fn,mod-2);
+        for (i=0;i<fn;i++) a[i]=mulmod(a[i], t, mod);
+
+        for (i=0;i<=m+n;i++) printlnInt(a[i]); // printf("%d ",a[i]);
+        return 0;
+    }
+};
+
+int main() {
+    taskNTT ntt = new taskNTT(); // normal hard numerical task
+    ntt.main();
+    return 0;
+}

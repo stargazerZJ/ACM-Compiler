@@ -1,0 +1,34 @@
+// operator test
+
+int main() {
+    int a, b, c, d;
+
+    a = 1;
+    a = a + 1;
+    b = 1;
+    c = 1;
+
+    // testing unary operator
+    a = -a;
+    a = +a;
+    d = b ++;
+    d = c --;
+    d = ++ a;
+    d = -- b;
+    d = (++ c) ++;
+
+    // testing ternary operator
+    bool cond;
+    cond = true;
+    a = cond ? 1 : 2; // WRONG
+    b = cond ? 1 : cond ? 2 : 3;
+    bool e, f, g;
+    e = true;
+    f = false;
+    g = true;
+    e = cond ? e : f;
+    f = cond ? e : cond ? f : g;
+    g = (e && f) ? e : (f || g);
+
+    return a;
+}

@@ -1,0 +1,13 @@
+// global variable test 2
+
+string g = "Hello";
+
+int main() {
+    int j = 1;
+    string h = "World!";
+    while (j < 10) {
+        h = g;
+        j = j + 1;
+    }
+    return 0;
+}

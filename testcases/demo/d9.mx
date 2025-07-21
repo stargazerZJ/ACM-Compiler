@@ -1,0 +1,24 @@
+// global variable test
+
+class A {
+    int a;
+    A() {
+        a = 10;
+        return ;
+    }
+};
+
+// A a, b = new A(), c = null;
+A a;
+int d;
+int e = 1;
+int f = 1 + 1;
+int g = a.a;
+bool h = true;
+bool i;
+
+int main() {
+    int j = 1;
+    j = g;
+    return 0;
+}

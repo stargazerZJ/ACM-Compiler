@@ -1,0 +1,35 @@
+// SCCP test
+
+int foo(int a, int b) {
+    return a + b;
+}
+
+int main() {
+    int a = 1;
+    int b = 2;
+    int c = a + b;
+    int d = c + 3;
+
+    foo(a, b);
+    foo(c, d);
+
+    bool e = true;
+    bool f = false;
+
+    if (e && f) {
+        d = 0;
+    } else {
+        d = 1;
+    }
+
+    int g;
+    if (foo(a, b) == 3) {
+        g = 1;
+    } else {
+        // unreachable because g will be used uninitialized
+        a = 0;
+    }
+    a = foo(g, g);
+
+    return d;
+}

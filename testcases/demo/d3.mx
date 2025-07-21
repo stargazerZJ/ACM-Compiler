@@ -1,0 +1,42 @@
+// branch test
+
+int main() {
+    bool a, b;
+
+    a = true;
+    b = (a && false) == false;
+
+    if (a) {
+        a = false;
+    } else {
+        b = true;
+    }
+
+    if (a && b) {
+        a = true;
+    } else if (a || b) {
+        a = false;
+    } else if (a == b) {
+        b = true;
+    } else if ((a == b) && a) {
+    } else if ((a && false) == false) { // if.line22.2: extra block -> fixed
+    } else {
+        b = false;
+    }
+
+    if (a && false) {
+        b = true;
+    } else if (a || true) {
+        a = false;
+    } else {
+        b = true;
+    }
+
+    a = !a;
+    b = !true;
+
+    a = !(a && b);
+
+    b = !!b;
+
+}

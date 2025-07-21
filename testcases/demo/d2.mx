@@ -1,0 +1,17 @@
+// bool logic test
+
+int main() {
+    bool a, b;
+
+    a = true;
+    b = false;
+
+    a = a && b;
+    a = a || b;
+
+    a = (a && b) || (a || b);
+
+    a = true || b;
+
+    (a || b) == true;
+}

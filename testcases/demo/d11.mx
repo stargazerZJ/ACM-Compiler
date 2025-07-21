@@ -1,0 +1,20 @@
+// string test
+
+int main()
+{
+	string s = "Hello";
+	string t = "World!";
+	string u = s + ", " + t; // u is "Hello, World!"
+	u.length();
+	u.substring(0, 5); // "Hello"
+	("123").parseInt(); // 123
+	u.ord(0); // 'H'
+	"abc\\def\nghi\"jkl";
+	s == t;
+	s != t;
+	s < t;
+	s <= t;
+	s > t;
+	s >= t;
+	string[] arr = new string[10];
+}

@@ -1,0 +1,27 @@
+// function define test
+
+int func(int a, int b) {
+    return a + b;
+}
+
+void func2() {
+    1 + 1;
+    return;
+}
+
+int func3(int a, int b) {
+    if (1 < 2) {
+        return 1;
+    }
+    // unreachable code
+    1 + 1;
+}
+
+int main() {
+    int a = 1;
+    int b = 2;
+    a = getInt();
+    func2();
+    return func(a, b);
+    // return 0;
+}
