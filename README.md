@@ -16,6 +16,30 @@ Alternatively, a `Dockerfile` is provided for you to build the project in a cont
 
 Afterwards, `make build` should be enough.
 
+## Implemented Optimizations
+
+- Dead Code Elimination (Naive DCE)
+- Memory-to-Register Promotion (mem2reg)
+- Global Variable Inlining
+- Remove Unreachable Blocks
+- Remove Critical Edges
+- Reverse Post-Order Block Rearrangement
+- Sparse Conditional Constant Propagation (SCCP)
+- Global Value Numbering with Partial Redundancy Elimination (GVN-PRE)
+- Copy Propagation
+- Liveness Analysis
+- MIR Construction
+- Lots of small optimizations in ASM generation
+
+### Usage
+
+Specify optimization levels using the `-O` flag:
+```bash
+python main.py -O O1 input.mx -o output.s    # Standard optimization
+python main.py -O O0 input.mx -o output.s    # Minimal optimization
+python main.py -O gvn_pre input.mx -o output.s  # GVN-PRE specific optimizations
+```
+
 ## Testing
 
 For comprehensive testing instructions, including LLVM IR testing, assembly testing, semantic analysis, and optimization level usage, please refer to the [Testing Guide](TESTING.md).
