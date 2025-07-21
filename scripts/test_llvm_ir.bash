@@ -40,7 +40,7 @@ CLANG=llc-18
 
 # Usage
 if [ $# -ne 3 ] && [ $# -ne 4 ]; then
-    cat << EOF >&2 
+    cat << EOF >&2
 Usage: $0 <compiler> <testcase> [builtin] [tempdir]
        The builtin and tempdir are optional. If there are three arguments, the
        script will check whether the third argument is a file. If it is a file,
@@ -72,7 +72,8 @@ source $(dirname $0)/utils.bash
 # line (export PATH="/usr/local/opt/bin:$PATH") in your .bashrc or .zshrc
 # (depending on which shell you are using).
 export PATH="./testcases:$PATH"
-test_bin ravel
+test_bin reimu
+# Update: https://github.com/DarkSharpness/REIMU is now used
 
 # 1. Make temp directory
 if [ $# -eq 4 ]; then
